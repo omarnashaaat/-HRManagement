@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>المنسق HR - نظام إدارة الموارد البشرية</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- SheetJS for Excel Processing -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        .desktop-container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        @media print {
+            @page { size: A4 portrait; margin: 10mm; }
+            html, body { width: 210mm; height: 297mm; }
+            body { background: white !important; color: black !important; }
+            .no-print { display: none !important; }
+
+            main > div { page-break-after: always; break-after: page; min-height: 277mm; box-sizing: border-box; padding: 10mm 0 !important; }
+
+            table { border-collapse: collapse !important; width: 100% !important; font-size: 8pt !important; }
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
+            tr { page-break-inside: avoid; }
+            th, td { border: 1px solid black !important; padding: 4px !important; color: black !important; font-weight: normal !important; }
+
+            body.print-only-archive * { visibility: hidden !important; }
+            body.print-only-archive .print-container, body.print-only-archive .print-container * { visibility: visible !important; position: static !important; }
+
+            body.print-only-archive main > div { page-break-after: auto !important; break-after: auto !important; min-height: auto !important; }
+            body.print-only-archive .print-container { position: absolute !important; left: 0 !important; top: 0 !important; width: 190mm !important; height: 277mm !important; margin: 0 auto !important; padding: 6mm !important; box-sizing: border-box !important; overflow: hidden !important; zoom: 0.88 !important; -webkit-zoom: 0.88 !important; transform: scale(0.95) !important; transform-origin: top left !important; -webkit-transform: scale(0.95) !important; -webkit-transform-origin: top left !important; }
+
+            tr { page-break-inside: avoid !important; }
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .writing-mode-vertical {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+
+<link rel="stylesheet" href="/src/index.css">
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- React and Lucide Libraries -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const containerRef = useRef(null);
+            useEffect(() => {
+                if (window.lucide && containerRef.current) {
+                    containerRef.current.innerHTML = `<i data-lucide="${name}"></i>`;
+                    window.lucide.createIcons({ root: containerRef.current });
+                    const svg = containerRef.current.querySelector('svg');
+                    if (svg) {
+                        svg.setAttribute('width', size);
+                        svg.setAttribute('height', size);
+                        if (className) className.split(' ').filter(Boolean).forEach(cls => svg.classList.add(cls));
+                    }
+                }
+            }, [name, size, className]);
+            return <span ref={containerRef} className="inline-flex items-center justify-center pointer-events-none" style={{ width: size, height: size }}></span>;
+        };
+
+        const Attendance = ({ employees, attendanceLog, setAttendanceLog }) => {
+            const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+            const calculateDeduction = (arrival, departure) => {
+                let lateDeduction = 0;
+                if (arrival) {
+                    const [h, m] = arrival.split(':').map(Number);
+                    const totalMinutes = h * 60 + m;
+                    const limit915 = 9 * 60 + 15;
+                    const limit930 = 9 * 60 + 30;
+                    const limit1000 = 10 * 60;
+                    const limit1030 = 10 * 60 + 30;
+                    const limit1200 = 12 * 60;
+
+                    if (totalMinutes <= limit915) lateDeduction = 0;
+                    else if (totalMinutes <= limit930) lateDeduction = 0.5;
+                    else if (totalMinutes <= limit1000) lateDeduction = 1;
+                    else if (totalMinutes <= limit1030) lateDeduction = 1.5;
+                    else if (totalMinutes <= limit1200) lateDeduction = 4;
+                    else lateDeduction = 8;
+                }
+
+                let earlyDeduction = 0;
+                if (departure) {
+                    const [h, m] = departure.split(':').map(Number);
+                    const totalMinutes = h * 60 + m;
+                    const limit1700 = 17 * 60;
+                    const limit1645 = 16 * 60 + 45;
+                    const limit1600 = 16 * 60;
+                    const limit1530 = 15 * 60 + 30;
+                    const limit1500 = 15 * 60;
+                    const limit1400 = 14 * 60;
+
+                    if (totalMinutes >= limit1700) earlyDeduction = 0;
+                    else if (totalMinutes >= limit1645) earlyDeduction = 0.5;
+                    else if (totalMinutes >= limit1600) earlyDeduction = 1;
+                    else if (totalMinutes >= limit1530) earlyDeduction = 1.5;
+                    else if (totalMinutes >= limit1500) earlyDeduction = 2;
+                    else if (totalMinutes >= limit1400) earlyDeduction = 4;
+                    else earlyDeduction = 8;
+                }
+                return lateDeduction + earlyDeduction;
+            };
+
+            const updateRecord = (empId, field, value) => {
+                const dateRecords = attendanceLog[selectedDate] || {};
+                const currentRecord = dateRecords[empId] || { arrivalTime: '', departureTime: '', deduction: 0, notes: '' };
+                const newRecord = { ...currentRecord, [field]: value };
+                if (field === 'arrivalTime' || field === 'departureTime') {
+                    newRecord.deduction = calculateDeduction(newRecord.arrivalTime, newRecord.departureTime);
+                }
+                setAttendanceLog(prev => ({
+                    ...prev,
+                    [selectedDate]: { ...dateRecords, [empId]: newRecord }
+                }));
+            };
+
+            return (
+                <div className="space-y-8 animate-fade-in">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="space-y-2">
+                            <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+                                <Icon name="clock" className="text-blue-600" size={32} /> الحضور والانصراف اليومي
+                            </h2>
+                            <p className="text-slate-500 font-bold">تسجيل المواعيد وتطبيق اللائحة</p>
+                            <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-xl">
+                                <Icon name="info" size={16} className="text-blue-600" />
+                                <span className="text-xs font-black text-blue-700">دورة الشهر: من يوم 26 حتى يوم 25 من الشهر التالي</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
+                            <Icon name="calendar" className="text-slate-400" size={20} />
+                            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="outline-none font-bold text-slate-700 bg-transparent" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                        <div className="lg:col-span-1 space-y-4">
+                            <div className="bg-blue-600 rounded-[40px] p-8 text-white shadow-xl">
+                                <h3 className="font-black text-lg mb-4 flex items-center gap-2"><Icon name="info" size={20} /> لائحة التأخير</h3>
+                                <ul className="space-y-2 text-xs font-bold opacity-90">
+                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>حتى 09:15 ص</span> <span>سماح</span></li>
+                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>حتى 09:30 ص</span> <span>0.5 س</span></li>
+                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>حتى 10:00 ص</span> <span>1 س</span></li>
+                                    <li className="flex justify-between"><span>بعد 12:00 م</span> <span>8 س</span></li>
+                                </ul>
+                            </div>
+                            <div className="bg-slate-800 rounded-[40px] p-8 text-white shadow-xl">
+                                <h3 className="font-black text-lg mb-4 flex items-center gap-2"><Icon name="alert-circle" size={20} /> انصراف مبكر</h3>
+                                <ul className="space-y-2 text-xs font-bold opacity-90">
+                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>من 05:00 م</span> <span>طبيعي</span></li>
+                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>04:45 م</span> <span>0.5 س</span></li>
+                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>04:00 م</span> <span>1 س</span></li>
+                                    <li className="flex justify-between"><span>02:00 م</span> <span>4 س</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div className="lg:col-span-3">
+                            <div className="rounded-[40px] shadow-2xl overflow-hidden border bg-white border-slate-100">
+                                <table className="w-full text-right">
+                                    <thead className="bg-slate-50 text-slate-500 text-[11px] font-black uppercase border-b">
+                                        <tr><th className="px-6 py-5">الموظف</th><th className="px-4 py-5">حضور</th><th className="px-4 py-5">انصراف</th><th className="px-4 py-5 text-center">خصم</th><th className="px-4 py-5">ملاحظات</th></tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        {employees.map(emp => {
+                                            const record = (attendanceLog[selectedDate] && attendanceLog[selectedDate][emp.id]) || { arrivalTime: '', departureTime: '', deduction: 0, notes: '' };
+                                            return (
+                                                <tr key={emp.id} className="hover:bg-blue-50/30">
+                                                    <td className="px-6 py-4"><span className="font-black block">{emp.name}</span><span className="text-[10px] text-slate-400">كود: {emp.code}</span></td>
+                                                    <td className="px-4 py-4"><input type="time" value={record.arrivalTime} onChange={(e) => updateRecord(emp.id, 'arrivalTime', e.target.value)} className="bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" /></td>
+                                                    <td className="px-4 py-4"><input type="time" value={record.departureTime} onChange={(e) => updateRecord(emp.id, 'departureTime', e.target.value)} className="bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" /></td>
+                                                    <td className="px-4 py-4 text-center"><span className={`px-4 py-2 rounded-full font-black text-xs ${record.deduction > 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>{record.deduction} س</span></td>
+                                                    <td className="px-4 py-4"><input type="text" value={record.notes} onChange={(e) => updateRecord(emp.id, 'notes', e.target.value)} className="w-full bg-transparent border-b text-xs" /></td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Settings = ({ companyName, setCompanyName, appData, onRestore }) => {
+            const fileInputRef = useRef(null);
+
+            const handleBackup = () => {
+                const dataStr = JSON.stringify(appData, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `HR_Tiba_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const handleRestore = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const json = JSON.parse(e.target.result);
+                        if (confirm('هل أنت متأكد من استعادة البيانات؟ سيؤدي ذلك إلى استبدال كافة البيانات الحالية.')) {
+                            onRestore(json);
+                            alert('تمت استعادة البيانات بنجاح!');
+                        }
+                    } catch (err) {
+                        alert('خطأ في ملف النسخة الاحتياطية. يرجى التأكد من صحة الملف.');
+                    }
+                };
+                reader.readAsText(file);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto space-y-10 animate-fade-in pb-20">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-4xl font-black text-slate-800">إعدادات النظام</h2>
+                    </div>
+
+                    <div className="bg-white rounded-[40px] p-10 border border-slate-100 shadow-xl space-y-10">
+                        {/* Backup & Restore Section */}
+                        <div className="bg-slate-50/50 rounded-[30px] p-8 border border-slate-100">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl">
+                                    <Icon name="save" size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800">النسخ الاحتياطي والاستعادة</h3>
+                                    <p className="text-slate-400 text-xs font-bold">قم بتصدير قاعدة البيانات كاملة (JSON) لحفظها بأمان أو نقلها لجهاز آخر.</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <button 
+                                    onClick={handleBackup}
+                                    className="flex flex-col items-center justify-center p-8 bg-white border-2 border-slate-100 rounded-[30px] hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                                >
+                                    <Icon name="download" size={32} className="text-slate-300 group-hover:text-blue-500 mb-4 transition-colors" />
+                                    <span className="text-lg font-black text-slate-700">تحميل نسخة (Backup)</span>
+                                </button>
+
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="flex flex-col items-center justify-center p-8 bg-white border-2 border-slate-100 rounded-[30px] hover:border-indigo-500 hover:bg-indigo-50 transition-all group"
+                                >
+                                    <Icon name="upload" size={32} className="text-slate-300 group-hover:text-indigo-500 mb-4 transition-colors" />
+                                    <span className="text-lg font-black text-slate-700">استعادة (Restore)</span>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        onChange={handleRestore} 
+                                        accept=".json" 
+                                        className="hidden" 
+                                    />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Company Name Section */}
+                        <div className="space-y-6">
+                            <div className="flex flex-col space-y-2">
+                                <label className="text-sm font-black text-slate-700 mr-2">اسم الشركة (يظهر في التقارير)</label>
+                                <div className="relative">
+                                    <Icon name="building" className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                                    <input 
+                                        type="text" 
+                                        value={companyName}
+                                        onChange={(e) => setCompanyName(e.target.value)}
+                                        placeholder="أدخل اسم شركتك هنا..."
+                                        className="w-full pr-14 pl-6 py-5 rounded-2xl border-2 border-slate-100 font-bold text-slate-700 focus:border-blue-500 outline-none transition-all bg-slate-50/30"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* System Info */}
+                        <div className="pt-6 border-t border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-2 text-emerald-600">
+                                <Icon name="shield-check" size={18} />
+                                <span className="text-xs font-black">النظام محدث ومؤمن بالكامل</span>
+                            </div>
+                            <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                                إصدار النظام v2.5.0 - TIBA COORDINATOR
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-amber-50 rounded-[30px] p-6 border border-amber-100 flex gap-4 items-start">
+                        <Icon name="alert-circle" className="text-amber-500 shrink-0" size={20} />
+                        <p className="text-xs font-bold text-amber-700 leading-relaxed">
+                            تنبيه: لا تقم بمشاركة ملف النسخة الاحتياطية مع أي شخص غير مخول، حيث يحتوي الملف على كافة البيانات الشخصية والرواتب الخاصة بالموظفين.
+                        </p>
+                    </div>
+                </div>
+            );
+        };
+
+        const INITIAL_EMPLOYEES = [
+            { id: '1', code: '101', name: 'أحمد محمد علي', jobTitle: 'مدير مبيعات', department: 'المبيعات', status: 'نشط', joinDate: '2023-01-15', totalLeaves: 21, monthlyLeaves: Array(12).fill(0), notes: '', nationalId: '29001011234567', phone: '01012345678', address: 'القاهرة - مدينة نصر' },
+            { id: '2', code: '102', name: 'سارة محمود حسن', jobTitle: 'محاسب مالي', department: 'المالية', status: 'نشط', joinDate: '2023-03-10', totalLeaves: 30, monthlyLeaves: [1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], notes: 'مجتهدة جداً', nationalId: '29505021234568', phone: '01122334455', address: 'الجيزة - الدقي' },
+        ];
+
+        const Dashboard = ({ setActiveTab, userName }) => {
+            const menuItems = [
+                { id: 'employees', title: 'فريق العمل', sub: 'جميع ملفات الموظفين', icon: 'users', color: 'bg-indigo-600' },
+                { id: 'attendance', title: 'الحضور والإنصراف', sub: 'سجلات الحضور اليومية', icon: 'clock', color: 'bg-blue-600' },
+                { id: 'leaves', title: 'الإجازات', sub: 'رصيد غيابات الشهور', icon: 'calendar-days', color: 'bg-pink-600' },
+                { id: 'archive', title: 'الأرشيف والمستندات', sub: 'مسوغات التعيين والملفات', icon: 'folder-archive', color: 'bg-amber-600' },
+                { id: 'insurance', title: 'التأمينات الاجتماعية', sub: 'إدارة التغطية التأمينية', icon: 'shield-check', color: 'bg-sky-600' },
+                { id: 'contracts', title: 'عقود العمل', sub: 'إدارة وتجديد العقود', icon: 'file-text', color: 'bg-teal-600' },
+                { id: 'settings', title: 'إعدادات النظام', sub: 'النسخ الاحتياطي والتهيئة', icon: 'settings', color: 'bg-slate-600' },
+            ];
+
+            return (
+                <div className="space-y-10 animate-fade-in">
+                    <div className="flex justify-between items-end">
+                        <div className="pr-4">
+                            <h1 className="text-4xl font-black text-slate-800 mb-2">مرحباً بك يا {userName} 👋</h1>
+                            <p className="text-slate-500 font-bold tracking-wide">إدارة أسهل… لقرارات أدق.</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {menuItems.map((item) => (
+                            <button 
+                                key={item.id} 
+                                onClick={() => setActiveTab(item.id)}
+                                className="group p-8 rounded-[45px] shadow-sm transition-all duration-300 flex flex-col items-center text-center border bg-white border-slate-100 hover:bg-slate-900 hover:-translate-y-2"
+                            >
+                                <div className={`${item.color} text-white p-6 rounded-[28px] mb-5 shadow-lg group-hover:scale-110 transition-transform duration-500 flex items-center justify-center`}>
+                                    <Icon name={item.icon} size={36} />
+                                </div>
+                                <h3 className="text-2xl font-black mb-1 transition-colors text-slate-800 group-hover:text-white">{item.title}</h3>
+                                <p className="text-slate-400 group-hover:text-slate-500 text-xs font-bold uppercase tracking-widest">{item.sub}</p>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const Leaves = ({ employees, onUpdateEmployee }) => {
+            const [editingId, setEditingId] = useState(null);
+            const [editData, setEditData] = useState({});
+            
+            const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+
+            const startEditing = (emp) => {
+                setEditingId(emp.id);
+                setEditData({ ...emp });
+            };
+
+            const saveEdit = () => {
+                onUpdateEmployee(editData);
+                setEditingId(null);
+            };
+
+            const calculateTotalConsumed = (monthlyLeaves) => (monthlyLeaves || []).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
+
+            return (
+                <div className="space-y-8 animate-fade-in">
+                    <div className="flex justify-between items-center no-print">
+                        <div>
+                            <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+                                <Icon name="calendar-days" className="text-pink-600" size={32} /> سجل غيابات الموظفين (12 شهر)
+                            </h2>
+                            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">إدارة الرصيد السنوي واستهلاك الشهور</p>
+                        </div>
+                        {editingId && (
+                            <div className="flex gap-3">
+                                <button onClick={saveEdit} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black shadow-lg hover:bg-pink-600 transition-all">حفظ التعديلات</button>
+                                <button onClick={() => setEditingId(null)} className="bg-slate-200 text-slate-700 px-6 py-3 rounded-2xl font-black hover:bg-slate-300 transition-all">إلغاء</button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="rounded-[40px] shadow-2xl overflow-hidden border bg-white border-slate-100">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-center border-collapse text-[11px]">
+                                <thead className="bg-pink-50 text-pink-800 font-black uppercase tracking-wider border-b border-pink-100">
+                                    <tr>
+                                        <th className="px-4 py-6 border-l border-pink-200 sticky right-0 z-20 bg-pink-50 min-w-[150px] text-right">الموظف</th>
+                                        <th className="px-2 py-6 border-l border-pink-200 min-w-[70px]">الرصيد الكلي</th>
+                                        {months.map((m, i) => (
+                                            <th key={i} className="px-1 py-6 border-l border-pink-200 min-w-[45px]">{m}</th>
+                                        ))}
+                                        <th className="px-2 py-6 border-l border-pink-200 min-w-[70px]">المتبقي</th>
+                                        <th className="px-4 py-6 border-l border-pink-200 min-w-[150px]">ملاحظات</th>
+                                        <th className="px-2 py-6 no-print min-w-[60px]">تعديل</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {employees.map(emp => {
+                                        const isEditing = editingId === emp.id;
+                                        const data = isEditing ? editData : emp;
+                                        const consumed = calculateTotalConsumed(data.monthlyLeaves);
+                                        const remaining = (Number(data.totalLeaves) || 0) - consumed;
+
+                                        return (
+                                            <tr key={emp.id} className={`${isEditing ? 'bg-pink-50/50' : 'hover:bg-slate-50'} transition-all group`}>
+                                                <td className="px-4 py-4 border-l font-black text-right sticky right-0 z-10 bg-inherit shadow-sm">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-slate-800 text-xs">{emp.name}</span>
+                                                        <span className="text-[9px] text-slate-400">كود: {emp.code}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-2 py-4 border-l">
+                                                    {isEditing ? (
+                                                        <input 
+                                                            type="number" 
+                                                            className="w-full text-center bg-white border rounded p-1 font-black text-pink-600 focus:outline-pink-400" 
+                                                            value={data.totalLeaves} 
+                                                            onChange={e => setEditData({...editData, totalLeaves: e.target.value})} 
+                                                        />
+                                                    ) : (
+                                                        <span className="font-black text-slate-700">{emp.totalLeaves || 0}</span>
+                                                    )}
+                                                </td>
+                                                {(data.monthlyLeaves || Array(12).fill(0)).map((val, idx) => (
+                                                    <td key={idx} className={`px-0 py-4 border-l ${val > 0 ? 'bg-pink-500/5' : ''}`}>
+                                                        {isEditing ? (
+                                                            <input 
+                                                                type="number" 
+                                                                className="w-full text-center bg-transparent outline-none focus:bg-white text-rose-500 font-bold" 
+                                                                value={val === 0 ? '' : val} 
+                                                                placeholder="0"
+                                                                onChange={e => {
+                                                                    const newMonthly = [...data.monthlyLeaves];
+                                                                    newMonthly[idx] = parseInt(e.target.value) || 0;
+                                                                    setEditData({...editData, monthlyLeaves: newMonthly});
+                                                                }} 
+                                                            />
+                                                        ) : (
+                                                            <span className={`font-bold ${val > 0 ? 'text-rose-500' : 'text-slate-300'}`}>{val || '-'}</span>
+                                                        )}
+                                                    </td>
+                                                ))}
+                                                <td className={`px-2 py-4 border-l font-black ${remaining < 0 ? 'text-rose-600 bg-rose-50' : 'text-emerald-600 bg-emerald-50'}`}>
+                                                    {remaining}
+                                                </td>
+                                                <td className="px-4 py-4 border-l text-right">
+                                                    {isEditing ? (
+                                                        <input 
+                                                            type="text" 
+                                                            className="w-full bg-white border rounded p-1 text-[10px] outline-pink-400" 
+                                                            value={data.notes} 
+                                                            onChange={e => setEditData({...editData, notes: e.target.value})} 
+                                                        />
+                                                    ) : (
+                                                        <span className="text-slate-400 italic text-[10px] truncate max-w-[150px] block">{emp.notes || '---'}</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-2 py-4 text-center no-print">
+                                                    {!isEditing && (
+                                                        <button 
+                                                            onClick={() => startEditing(emp)} 
+                                                            className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-pink-600 hover:text-white transition-all"
+                                                        >
+                                                            <Icon name="edit-3" size={14} />
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div className="bg-slate-50 p-6 rounded-[30px] border-2 border-slate-100 no-print">
+                        <p className="text-slate-500 text-[10px] font-bold text-center">المعادلة: الرصيد المتبقي = (الرصيد الكلي يدوي) - (مجموع غيابات الـ 12 شهر)</p>
+                    </div>
+                </div>
+            );
+        };
+
+        const Contracts = ({ employees, contractRecords, setContractRecords }) => {
+            const [editingId, setEditingId] = useState(null);
+            const [formData, setFormData] = useState({});
+
+            const startEditing = (emp) => {
+                const record = contractRecords[emp.id] || {
+                    companyName: '',
+                    branch: '',
+                    hiringEntity: '',
+                    startDate: emp.joinDate || '',
+                    endDate: '',
+                    type: 'محدد المدة'
+                };
+                setFormData(record);
+                setEditingId(emp.id);
+            };
+
+            const saveRecord = (empId) => {
+                setContractRecords(prev => ({ ...prev, [empId]: formData }));
+                setEditingId(null);
+            };
+
+            return (
+                <div className="space-y-8 animate-fade-in">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2 className="text-3xl font-black text-slate-800">إدارة عقود العمل</h2>
+                            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">تفاصيل التعيين والعقود القانونية</p>
+                        </div>
+                    </div>
+
+                    <div className="rounded-[40px] shadow-2xl overflow-hidden border bg-white border-slate-100">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-right border-collapse">
+                                <thead className="bg-teal-50 text-teal-700 text-[11px] font-black uppercase tracking-wider border-b border-teal-100">
+                                    <tr>
+                                        <th className="px-4 py-5">الموظف</th>
+                                        <th className="px-4 py-5">نوع العقد</th>
+                                        <th className="px-4 py-5">بيانات المنشأة</th>
+                                        <th className="px-4 py-5">فترة التعاقد</th>
+                                        <th className="px-4 py-5 text-center no-print">إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {employees.map(emp => {
+                                        const record = contractRecords[emp.id] || {};
+                                        const isEditing = editingId === emp.id;
+
+                                        return (
+                                            <tr key={emp.id} className="hover:bg-teal-500/5 transition-colors group">
+                                                <td className="px-4 py-4 align-top">
+                                                    <div className="space-y-1">
+                                                        <p className="font-black text-slate-800 text-base">{emp.name}</p>
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">الكود الرقمي: <span className="text-teal-600">{emp.code}</span></span>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">الرقم القومي: <span className="text-slate-600">{emp.nationalId || '---'}</span></span>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">{emp.department} | {emp.jobTitle}</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4 align-top">
+                                                    {isEditing ? (
+                                                        <div className="space-y-2">
+                                                            <label className="text-[10px] font-black text-slate-400 block uppercase">نوع العقد</label>
+                                                            <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full p-2 border rounded-xl text-xs font-bold outline-none bg-white">
+                                                                <option value="محدد المدة">محدد المدة</option>
+                                                                <option value="غير محدد المدة">غير محدد المدة</option>
+                                                                <option value="عقد عمل مؤقت">عقد عمل مؤقت</option>
+                                                            </select>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-1">
+                                                            <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-[10px] font-black">{record.type || 'محدد المدة'}</span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-4 align-top">
+                                                    {isEditing ? (
+                                                        <div className="grid grid-cols-1 gap-2">
+                                                            <input type="text" placeholder="اسم الشركة" className="p-2 border rounded-xl text-xs outline-none" value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} />
+                                                            <input type="text" placeholder="الفرع" className="p-2 border rounded-xl text-xs outline-none" value={formData.branch} onChange={e => setFormData({...formData, branch: e.target.value})} />
+                                                            <input type="text" placeholder="جهة التعيين" className="p-2 border rounded-xl text-xs outline-none" value={formData.hiringEntity} onChange={e => setFormData({...formData, hiringEntity: e.target.value})} />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-1">
+                                                            <p className="text-xs font-bold text-slate-700">{record.companyName || '---'}</p>
+                                                            <p className="text-[10px] text-slate-500">{record.branch ? `فرع: ${record.branch}` : ''}</p>
+                                                            <p className="text-[10px] text-slate-400">{record.hiringEntity ? `جهة: ${record.hiringEntity}` : ''}</p>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-4 align-top">
+                                                    {isEditing ? (
+                                                        <div className="grid grid-cols-1 gap-2">
+                                                            <div className="space-y-1">
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase">بداية العقد</label>
+                                                                <input type="date" className="w-full p-2 border rounded-xl text-xs outline-none" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase">نهاية العقد</label>
+                                                                <input type="date" className="w-full p-2 border rounded-xl text-xs outline-none" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <Icon name="calendar" size={12} className="text-teal-500" />
+                                                                <span className="text-[11px] font-mono font-bold text-slate-600">البداية: {record.startDate || emp.joinDate}</span>
+                                                            </div>
+                                                            {record.endDate && (
+                                                                <div className="flex items-center gap-2">
+                                                                    <Icon name="clock" size={12} className="text-rose-400" />
+                                                                    <span className="text-[11px] font-mono font-bold text-slate-600">النهاية: {record.endDate}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-4 text-center no-print align-middle">
+                                                    {isEditing ? (
+                                                        <button onClick={() => saveRecord(emp.id)} className="p-3 bg-teal-600 text-white rounded-2xl shadow-lg hover:bg-teal-700 transition-all">
+                                                            <Icon name="check" size={18} />
+                                                        </button>
+                                                    ) : (
+                                                        <button onClick={() => startEditing(emp)} className="p-3 bg-slate-100 text-slate-400 rounded-2xl hover:bg-teal-600 hover:text-white transition-all">
+                                                            <Icon name="edit-3" size={18} />
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Insurance = ({ employees, insuranceRecords, setInsuranceRecords }) => {
+            const [editingId, setEditingId] = useState(null);
+            const [formData, setFormData] = useState({});
+
+            const startEditing = (emp) => {
+                const record = insuranceRecords[emp.id] || {
+                    status: 'غير مؤمن عليه',
+                    insuranceNumber: '',
+                    startDate: '',
+                    insuranceSalary: '',
+                    insuranceOffice: '',
+                    ratioCompany: '18.75',
+                    ratioEmployee: '11'
+                };
+                setFormData(record);
+                setEditingId(emp.id);
+            };
+
+            const saveRecord = (empId) => {
+                setInsuranceRecords(prev => ({ ...prev, [empId]: formData }));
+                setEditingId(null);
+            };
+
+            const stats = useMemo(() => {
+                const vals = Object.values(insuranceRecords);
+                return {
+                    insured: vals.filter(v => v.status === 'مؤمن عليه').length,
+                    notInsured: employees.length - vals.filter(v => v.status !== 'غير مؤمن عليه').length,
+                    processing: vals.filter(v => v.status === 'جاري التنفيذ').length
+                };
+            }, [insuranceRecords, employees]);
+
+            return (
+                <div className="space-y-8 animate-fade-in">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2 className="text-3xl font-black text-slate-800">التأمينات الاجتماعية</h2>
+                            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">إدارة ملفات التأمين وحصص المساهمة</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-emerald-500 p-8 rounded-[40px] text-white shadow-xl shadow-emerald-200">
+                            <Icon name="shield-check" size={32} className="mb-4 opacity-50" />
+                            <h4 className="text-sm font-black uppercase tracking-widest">مؤمن عليه</h4>
+                            <p className="text-5xl font-black">{stats.insured}</p>
+                        </div>
+                        <div className="bg-rose-500 p-8 rounded-[40px] text-white shadow-xl shadow-rose-200">
+                            <Icon name="shield-x" size={32} className="mb-4 opacity-50" />
+                            <h4 className="text-sm font-black uppercase tracking-widest">غير مؤمن عليه</h4>
+                            <p className="text-5xl font-black">{stats.notInsured}</p>
+                        </div>
+                        <div className="bg-amber-500 p-8 rounded-[40px] text-white shadow-xl shadow-amber-200">
+                            <Icon name="clock" size={32} className="mb-4 opacity-50" />
+                            <h4 className="text-sm font-black uppercase tracking-widest">جاري التنفيذ</h4>
+                            <p className="text-5xl font-black">{stats.processing}</p>
+                        </div>
+                    </div>
+                    <div className="rounded-[40px] shadow-2xl overflow-hidden border bg-white border-slate-100">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-right border-collapse">
+                                <thead className="bg-slate-50 text-slate-500 text-[11px] font-black uppercase tracking-wider border-b border-slate-100">
+                                    <tr>
+                                        <th className="px-4 py-5">الكود</th>
+                                        <th className="px-6 py-5">الاسم</th>
+                                        <th className="px-4 py-5">الحالة</th>
+                                        <th className="px-4 py-5">الرقم التأميني</th>
+                                        <th className="px-4 py-5">تاريخ الاشتراك</th>
+                                        <th className="px-4 py-5">الأجر التأميني</th>
+                                        <th className="px-4 py-5">مكتب التأمينات</th>
+                                        <th className="px-4 py-5 text-center">النسبة (شركة/موظف)</th>
+                                        <th className="px-4 py-5 text-center no-print">إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {employees.map(emp => {
+                                        const record = insuranceRecords[emp.id] || { status: 'غير مؤمن عليه' };
+                                        const isEditing = editingId === emp.id;
+                                        return (
+                                            <tr key={emp.id} className="hover:bg-sky-500/5 transition-colors group">
+                                                <td className="px-4 py-4 font-mono font-black text-sky-600">{emp.code}</td>
+                                                <td className="px-6 py-4 font-black text-slate-800">{emp.name}</td>
+                                                <td className="px-4 py-4">
+                                                    {isEditing ? (
+                                                        <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="bg-white border p-1 rounded font-bold text-xs">
+                                                            <option value="مؤمن عليه">مؤمن عليه</option>
+                                                            <option value="غير مؤمن عليه">غير مؤمن عليه</option>
+                                                            <option value="جاري التنفيذ">جاري التنفيذ</option>
+                                                        </select>
+                                                    ) : (
+                                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black ${
+                                                            record.status === 'مؤمن عليه' ? 'bg-emerald-100 text-emerald-600' :
+                                                            record.status === 'جاري التنفيذ' ? 'bg-amber-100 text-amber-600' :
+                                                            'bg-rose-100 text-rose-600'
+                                                        }`}>{record.status}</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-4">{isEditing ? <input type="text" className="w-24 p-1 border rounded text-xs font-mono" value={formData.insuranceNumber} onChange={e => setFormData({...formData, insuranceNumber: e.target.value})} /> : <span className="font-mono text-xs text-slate-500">{record.insuranceNumber || '---'}</span>}</td>
+                                                <td className="px-4 py-4">{isEditing ? <input type="date" className="w-32 p-1 border rounded text-xs" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} /> : <span className="font-mono text-[10px] text-slate-400">{record.startDate || '---'}</span>}</td>
+                                                <td className="px-4 py-4">{isEditing ? <input type="number" className="w-20 p-1 border rounded text-xs font-bold" value={formData.insuranceSalary} onChange={e => setFormData({...formData, insuranceSalary: e.target.value})} /> : <span className="font-bold text-sky-700">{record.insuranceSalary ? `${record.insuranceSalary} ج.م` : '---'}</span>}</td>
+                                                <td className="px-4 py-4">{isEditing ? <input type="text" className="w-28 p-1 border rounded text-xs" value={formData.insuranceOffice} onChange={e => setFormData({...formData, insuranceOffice: e.target.value})} /> : <span className="text-xs text-slate-500">{record.insuranceOffice || '---'}</span>}</td>
+                                                <td className="px-4 py-4 text-center">{isEditing ? <div className="flex items-center gap-1 justify-center"><input type="text" className="w-10 p-1 border rounded text-[10px]" value={formData.ratioCompany} onChange={e => setFormData({...formData, ratioCompany: e.target.value})} /><span className="text-slate-300">/</span><input type="text" className="w-10 p-1 border rounded text-[10px]" value={formData.ratioEmployee} onChange={e => setFormData({...formData, ratioEmployee: e.target.value})} /></div> : <span className="text-[10px] font-bold text-slate-400">{record.ratioCompany || '18.75'}% / {record.ratioEmployee || '11'}%</span>}</td>
+                                                <td className="px-4 py-4 text-center no-print">{isEditing ? <button onClick={() => saveRecord(emp.id)} className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"><Icon name="check" size={14} /></button> : <button onClick={() => startEditing(emp)} className="p-2 bg-slate-100 text-slate-400 rounded-lg hover:bg-sky-500 hover:text-white transition-all"><Icon name="edit" size={14} /></button>}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Archive = ({ employees }) => {
+            const [view, setView] = useState('folders');
+            const [docsState, setDocsState] = useState({});
+            const docHeaders = ["صورة البطاقة", "إقرار استلام العمل", "أصل المؤهل الدراسي", "أصل شهادة الميلاد", "الكشف الطبي (111)", "صحيفة الحالة الجنائية", "الموقف من التجنيد", "الصور الشخصية (6)", "كعب العمل", "أصل العقد الموقع", "استمارة س1", "شهادة قياس المهارة", "تراخيص / نقابة", "الشهادة الصحية"];
+            const toggleDoc = (empId, docIdx) => { const key = `${empId}-${docIdx}`; setDocsState(prev => ({ ...prev, [key]: !prev[key] })); };
+            const folders = [{ id: 'hiring_docs', title: 'مسوغات التعيين', icon: 'folder-open', color: 'bg-amber-600' }, { id: 'contracts', title: 'أرشيف العقود', icon: 'file-text', color: 'bg-indigo-600' }, { id: 'insurance', title: 'مستندات التأمينات', icon: 'shield-check', color: 'bg-sky-600' }, { id: 'payroll_archive', title: 'سجلات الرواتب', icon: 'banknote', color: 'bg-emerald-600' }];
+            if (view === 'folders') {
+                return (
+                    <div className="space-y-10 animate-fade-in">
+                        <div className="flex justify-between items-center"><div><h2 className="text-3xl font-black text-slate-800">الأرشيف الرقمي</h2><p className="text-slate-500 font-bold uppercase tracking-widest text-xs">إدارة الوثائق والملفات الرسمية</p></div></div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">{folders.map(f => (<button key={f.id} onClick={() => f.id === 'hiring_docs' && setView('hiring_matrix')} className="group p-8 rounded-[50px] border-2 transition-all flex flex-col items-center text-center bg-white border-slate-100 hover:border-amber-400"><div className={`${f.color} p-6 rounded-[30px] text-white shadow-xl mb-6 group-hover:scale-110 transition-transform`}><Icon name={f.icon} size={40} /></div><h3 className="text-xl font-black text-slate-800">{f.title}</h3><p className="text-slate-400 text-[10px] font-bold mt-2 uppercase">اضغط للفتح</p></button>))}</div>
+                    </div>
+                );
+            }
+            return (
+                <div className="space-y-6 animate-fade-in" key="archive-matrix">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print"><div><h2 className="text-2xl font-black text-slate-800">سجل استلام مسوغات التعيين</h2><p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">متابعة الوثائق المكتملة لكل موظف</p></div><div className="flex gap-3"><button onClick={() => setView('folders')} className="px-6 py-3 bg-white text-slate-800 border-2 border-slate-200 rounded-2xl font-black">العودة للمجلدات</button></div></div>
+                    <div className="rounded-[30px] shadow-2xl overflow-hidden border bg-white border-slate-200 print-container">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-center border-collapse">
+                                <thead className="bg-slate-50 text-slate-700 text-[10px] font-black uppercase">
+                                    <tr>
+                                        <th className="px-3 py-6 border-b border-l min-w-[60px] sticky right-0 z-20 bg-slate-50 text-center leading-none">كود<br/>الموظف</th>
+                                        <th className="px-4 py-6 border-b border-l min-w-[250px] sticky right-[60px] z-20 bg-slate-50 text-right">الاســــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــــم</th>
+                                        <th className="px-2 py-6 border-b border-l min-w-[100px]">الإدارة</th>
+                                        <th className="px-2 py-6 border-b border-l min-w-[120px]">الوظيفة</th>
+                                        <th className="px-2 py-6 border-b border-l min-w-[90px]">التوظيف</th>
+                                        {docHeaders.map((h, i) => (<th key={i} className="p-0 border-b border-l min-w-[50px] relative"><div className="writing-mode-vertical transform -rotate-180 h-48 flex items-center justify-center font-black leading-tight px-1 text-[9px]">{h}</div></th>))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">{employees.map(emp => (<tr key={emp.id} className="hover:bg-amber-500/5 transition-colors group"><td className="px-2 py-4 border-l font-mono font-bold text-indigo-500 sticky right-0 z-10 bg-white group-hover:bg-amber-50/50">{emp.code}</td><td className="px-4 py-4 border-l font-black text-right sticky right-[60px] z-10 bg-white group-hover:bg-amber-50/50 text-slate-800">{emp.name}</td><td className="px-2 py-4 border-l text-[11px] font-bold text-slate-500">{emp.department}</td><td className="px-2 py-4 border-l text-[11px] font-bold text-slate-500">{emp.jobTitle}</td><td className="px-2 py-4 border-l text-[11px] font-mono text-slate-400">{emp.joinDate}</td>{docHeaders.map((_, i) => { const key = `${emp.id}-${i}`; const checked = docsState[key]; return (<td key={i} onClick={() => toggleDoc(emp.id, i)} className={`px-1 py-4 border-l cursor-pointer transition-all hover:bg-emerald-500/10 ${checked ? 'bg-emerald-500/10' : ''}`}><div className="flex justify-center items-center h-8">{checked ? (<div className="text-emerald-500 animate-fade-in"><Icon name="check" size={24} /></div>) : (<div className="w-6 h-6 rounded-lg border-2 border-slate-200 opacity-20 no-print"></div>)}</div></td>); })}</tr>))}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const EmployeeTable = ({ employees, onAddEmployee, onUpdateEmployee, onDeleteEmployee, onBulkAdd }) => {
+            const [showModal, setShowModal] = useState(false);
+            const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+            const [editingEmp, setEditingEmp] = useState(null);
+            const [deletingEmpId, setDeletingEmpId] = useState(null);
+            const [selectedDept, setSelectedDept] = useState('all');
+            const fileInputRef = useRef(null);
+            const [formData, setFormData] = useState({ name: '', code: '', joinDate: '', department: '', jobTitle: '', nationalId: '', phone: '', address: '' });
+            const departmentsList = useMemo(() => ['all', ...new Set(employees.map(e => e.department).filter(Boolean))], [employees]);
+            const filteredEmployees = useMemo(() => selectedDept === 'all' ? employees : employees.filter(e => e.department === selectedDept), [employees, selectedDept]);
+            const normalizeText = (t) => t ? t.toString().trim().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ') : "";
+            const handleExcelUpload = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (evt) => { const bstr = evt.target.result; const wb = XLSX.read(bstr, { type: 'binary', cellDates: true }); const ws = wb.Sheets[wb.SheetNames[0]]; const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }); if (rows.length < 2) return alert("الملف فارغ تماماً."); const headers = rows[0].map(h => normalizeText(h)); const f = (k, df) => { const idx = headers.findIndex(h => k.some(ki => h.includes(normalizeText(ki)))); return idx !== -1 ? idx : df; }; const m = { code: f(['كود', 'بصمه'], 1), joinDate: f(['تاريخ', 'تعيين'], 2), name: f(['اسم'], 3), department: f(['قسم', 'اداره'], 4), jobTitle: f(['مسمي'], 5), nationalId: f(['قومي'], 6), phone: f(['هاتف'], 7), address: f(['عنوان'], 8) }; const res = rows.slice(1).map(r => ({ id: Math.random().toString(36).substr(2, 9), code: r[m.code]?.toString() || '', joinDate: r[m.joinDate] instanceof Date ? r[m.joinDate].toISOString().split('T')[0] : (r[m.joinDate]?.toString() || ''), name: r[m.name]?.toString() || '', department: r[m.department]?.toString() || '', jobTitle: r[m.jobTitle]?.toString() || '', nationalId: r[m.nationalId]?.toString() || '', phone: r[m.phone]?.toString() || '', address: r[m.address]?.toString() || '', status: 'نشط', totalLeaves: 21, monthlyLeaves: Array(12).fill(0) })).filter(emp => emp.name && emp.code); if (res.length) { onBulkAdd(res); alert(`تم استيراد بيانات ${res.length} موظف بنجاح.`); } }; reader.readAsBinaryString(file); e.target.value = null; };
+            const handleSubmit = (e) => { e.preventDefault(); editingEmp ? onUpdateEmployee({ ...formData, id: editingEmp.id }) : onAddEmployee(formData); setShowModal(false); };
+            return (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"><div><h2 className="text-3xl font-black text-slate-800">قائمة الموظفين</h2><p className="text-slate-500 font-bold">إدارة بيانات الكادر البشري في النظام</p></div><div className="flex flex-wrap items-center gap-3"><div className="relative"><Icon name="filter" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /><select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="pr-10 pl-4 py-2.5 rounded-2xl border-2 font-bold focus:outline-none bg-white border-slate-200 text-slate-700 appearance-none cursor-pointer"><option value="all">كافة الأقسام</option>{departmentsList.filter(d => d !== 'all').map(d => <option key={d} value={d}>{d}</option>)}</select></div><input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} /><button onClick={() => fileInputRef.current.click()} className="px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg bg-emerald-50 text-emerald-700 border border-emerald-100"><Icon name="file-spreadsheet" size={20} /> استيراد Excel</button><button onClick={() => { setEditingEmp(null); setFormData({ name: '', code: '', joinDate: '', department: '', jobTitle: '', nationalId: '', phone: '', address: '' }); setShowModal(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all"><Icon name="plus" size={20} /> إضافة موظف جديد</button></div></div>
+                    <div className="rounded-[40px] shadow-xl overflow-hidden border bg-white border-slate-100">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-right border-collapse">
+                                <thead className="bg-slate-50 text-slate-500 text-[11px] font-black uppercase tracking-wider border-b border-slate-100"><tr><th className="px-4 py-5">م</th><th className="px-4 py-5">الكود</th><th className="px-4 py-5">تاريخ التعيين</th><th className="px-6 py-5">الاسم الكامل</th><th className="px-4 py-5">الإدارة</th><th className="px-4 py-5">المسمى الوظيفي</th><th className="px-6 py-5">الرقم القومي</th><th className="px-4 py-5 text-center">الإجراءات</th></tr></thead>
+                                <tbody className="divide-y divide-slate-50">{filteredEmployees.length ? filteredEmployees.map((emp, index) => (<tr key={emp.id} className="hover:bg-indigo-500/5 transition-colors group"><td className="px-4 py-4 font-bold text-slate-500">{index + 1}</td><td className="px-4 py-4 font-mono font-black text-indigo-500">{emp.code}</td><td className="px-4 py-4 text-xs font-bold text-slate-500">{emp.joinDate}</td><td className="px-6 py-4 font-black text-base text-slate-800">{emp.name}</td><td className="px-4 py-4 text-sm font-bold text-slate-500">{emp.department}</td><td className="px-4 py-4 text-sm font-bold text-slate-500">{emp.jobTitle}</td><td className="px-6 py-4 font-mono text-xs text-slate-500">{emp.nationalId}</td><td className="px-4 py-4 text-center"><div className="flex justify-center items-center gap-2"><button onClick={() => { setEditingEmp(emp); setFormData({ ...emp }); setShowModal(true); }} className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 transition-all hover:text-white"><Icon name="edit" size={16} /></button><button onClick={() => { setDeletingEmpId(emp.id); setShowDeleteConfirm(true); }} className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 transition-all hover:text-white"><Icon name="trash-2" size={16} /></button></div></td></tr>)) : <tr><td colSpan="8" className="px-6 py-10 text-center text-slate-400 font-bold italic">لا توجد بيانات حالياً</td></tr>}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {showModal && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="w-full max-w-4xl p-10 rounded-[50px] shadow-2xl animate-fade-in border bg-white border-slate-200"><div className="flex justify-between items-center mb-8"><h3 className="text-3xl font-black text-slate-800">{editingEmp ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد'}</h3><button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-rose-500"><Icon name="x" size={32} /></button></div><form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الاسم الكامل</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الكود الوظيفي</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">تاريخ التعيين</label><input required type="date" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.joinDate} onChange={(e) => setFormData({...formData, joinDate: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الإدارة</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">المسمى الوظيفي</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.jobTitle} onChange={(e) => setFormData({...formData, jobTitle: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الرقم القومي</label><input required type="text" maxLength="14" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.nationalId} onChange={(e) => setFormData({...formData, nationalId: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">رقم الهاتف</label><input required type="tel" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} /></div><div className="md:col-span-2 space-y-1"><label className="text-xs font-black text-slate-500 uppercase">العنوان السكني</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} /></div><div className="md:col-span-3 pt-6"><button type="submit" className="w-full bg-indigo-600 text-white font-black py-4 rounded-3xl text-xl shadow-xl hover:bg-indigo-700 transition-all">حفظ البيانات</button></div></form></div></div>)}
+                    {showDeleteConfirm && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="w-full max-md p-10 rounded-[40px] shadow-2xl animate-fade-in border bg-white border-slate-200"><div className="text-center"><Icon name="alert-triangle" size={48} className="text-rose-500 mx-auto mb-4" /><h3 className="text-2xl font-black mb-2 text-slate-800">تأكيد عملية الحذف</h3><p className="text-slate-500 font-bold mb-8">سيتم حذف بيانات الموظف نهائياً من سجلات النظام</p><div className="flex gap-4"><button onClick={() => { onDeleteEmployee(deletingEmpId); setShowDeleteConfirm(false); }} className="flex-1 bg-rose-600 text-white font-black py-4 rounded-2xl hover:bg-rose-700 transition-all">حذف نهائي</button><button onClick={() => setShowDeleteConfirm(false)} className="flex-1 bg-slate-200 text-slate-700 font-black py-4 rounded-2xl hover:bg-slate-300 transition-all">إلغاء</button></div></div></div></div>)}
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [userName, setUserName] = useState('');
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
+            const [insuranceRecords, setInsuranceRecords] = useState({});
+            const [contractRecords, setContractRecords] = useState({});
+            const [attendanceLog, setAttendanceLog] = useState({});
+            const [currentTime, setCurrentTime] = useState(new Date());
+            const [companyName, setCompanyName] = useState(() => localStorage.getItem('hr_tiba_company_name') || 'شركة طيبة للتجارة');
+
+            useEffect(() => {
+                localStorage.setItem('hr_tiba_company_name', companyName);
+            }, [companyName]);
+
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            const addEmployee = (d) => setEmployees([...employees, { ...d, id: Date.now().toString(), status: 'نشط', totalLeaves: 21, monthlyLeaves: Array(12).fill(0) }]);
+            const bulkAddEmployees = (list) => setEmployees(p => [...p, ...list]);
+            const updateEmployee = (u) => setEmployees(employees.map(e => e.id === u.id ? { ...e, ...u } : e));
+            const deleteEmployee = (id) => setEmployees(employees.filter(e => e.id !== id));
+
+            const handleRestore = (data) => {
+                if (data.employees) setEmployees(data.employees);
+                if (data.attendanceLog) setAttendanceLog(data.attendanceLog);
+                if (data.insuranceRecords) setInsuranceRecords(data.insuranceRecords);
+                if (data.contractRecords) setContractRecords(data.contractRecords);
+                if (data.companyName) setCompanyName(data.companyName);
+            };
+
+            const formattedDate = currentTime.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const formattedTime = currentTime.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            if (!isLoggedIn) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-100">
+                        <div className="max-w-md w-full p-12 rounded-[60px] text-center border shadow-2xl bg-white border-slate-200">
+                            <div className="w-24 h-24 bg-indigo-600 rounded-3xl flex items-center justify-center text-white mx-auto mb-8 shadow-2xl rotate-3"><Icon name="user-circle-2" size={54} /></div>
+                            <h1 className="text-4xl font-black text-slate-800 mb-2 tracking-tight">المنسق HR</h1>
+                            <p className="text-slate-500 mb-10 font-bold uppercase tracking-widest text-xs">نظام إدارة الموارد البشرية المتكامل</p>
+                            <form onSubmit={(e) => { e.preventDefault(); if(userName.trim()) setIsLoggedIn(true); }} className="space-y-6">
+                                <input required type="text" placeholder="ما هو اسمك؟" className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-5 px-8 text-slate-800 text-center text-xl font-bold focus:outline-none" value={userName} onChange={(e) => setUserName(e.target.value)} />
+                                <button type="submit" className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl shadow-xl flex items-center justify-center gap-3 text-xl">دخول النظام <Icon name="arrow-left" size={24} /></button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen flex flex-col desktop-container px-6 py-8">
+                    <header className="glass-card rounded-[35px] py-4 px-10 flex items-center justify-between mb-10 no-print sticky top-4 z-50">
+                        <div className="flex items-center gap-4 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
+                            <div className="p-3 rounded-2xl shadow-xl bg-slate-900 text-white"><Icon name="layout-grid" size={24} /></div>
+                            <div className="flex flex-col">
+                                <span className="text-2xl font-black tracking-tighter hidden sm:block text-slate-800 leading-none">المنسق HR</span>
+                                <span className="text-[10px] font-black text-indigo-500 hidden sm:block truncate max-w-[150px]">{companyName}</span>
+                            </div>
+                        </div>
+                        <div className="flex-1 flex justify-center items-center gap-6 px-4">
+                            <nav className="hidden xl:flex items-center gap-2">
+                                {[
+                                    {id: 'dashboard', label: 'الرئيسية'},
+                                    {id: 'employees', label: 'الموظفين'},
+                                    {id: 'attendance', label: 'الحضور'},
+                                    {id: 'leaves', label: 'الإجازات'},
+                                    {id: 'archive', label: 'الأرشيف'},
+                                    {id: 'insurance', label: 'التأمينات'},
+                                    {id: 'contracts', label: 'العقود'},
+                                    {id: 'settings', label: 'الإعدادات'}
+                                ].map((l, i) => (
+                                    <button key={i} onClick={() => setActiveTab(l.id)} className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === l.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}>{l.label}</button>
+                                ))}
+                            </nav>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="hidden xl:flex items-center gap-4 bg-slate-50/80 px-4 py-2 rounded-2xl border border-slate-100 shadow-inner group hover:bg-white transition-all">
+                                <div className="flex flex-col text-right leading-tight">
+                                    <span className="text-[13px] font-bold text-slate-700">{formattedDate}</span>
+                                    <span className="text-[11px] font-black text-indigo-600 font-mono">{formattedTime}</span>
+                                </div>
+                                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm group-hover:rotate-12 transition-transform">
+                                    <Icon name="calendar" size={18} />
+                                </div>
+                            </div>
+                            <button onClick={() => setIsLoggedIn(false)} className="text-rose-500 hover:bg-rose-50 p-3 rounded-2xl transition-all" title="خروج"><Icon name="log-out" size={24} /></button>
+                        </div>
+                    </header>
+                    <main className="flex-1">
+                        {activeTab === 'dashboard' ? (
+                            <Dashboard setActiveTab={setActiveTab} userName={userName} />
+                        ) : activeTab === 'employees' ? (
+                            <EmployeeTable employees={employees} onAddEmployee={addEmployee} onUpdateEmployee={updateEmployee} onDeleteEmployee={deleteEmployee} onBulkAdd={bulkAddEmployees} />
+                        ) : activeTab === 'attendance' ? (
+                            <Attendance employees={employees} attendanceLog={attendanceLog} setAttendanceLog={setAttendanceLog} />
+                        ) : activeTab === 'leaves' ? (
+                            <Leaves employees={employees} onUpdateEmployee={updateEmployee} />
+                        ) : activeTab === 'archive' ? (
+                            <Archive employees={employees} />
+                        ) : activeTab === 'insurance' ? (
+                            <Insurance employees={employees} insuranceRecords={insuranceRecords} setInsuranceRecords={setInsuranceRecords} />
+                        ) : activeTab === 'contracts' ? (
+                            <Contracts employees={employees} contractRecords={contractRecords} setContractRecords={setContractRecords} />
+                        ) : activeTab === 'settings' ? (
+                            <Settings companyName={companyName} setCompanyName={setCompanyName} appData={{ employees, attendanceLog, insuranceRecords, contractRecords, companyName }} onRestore={handleRestore} />
+                        ) : (
+                            <div className="text-center py-40 text-slate-300 font-black text-4xl uppercase tracking-[0.2em] animate-pulse">سيتم التفعيل قريباً</div>
+                        )}
+                    </main>
+                    <footer className="mt-12 mb-6 text-center no-print text-slate-500 font-bold text-[12px] uppercase tracking-wide">تطوير: عمر نشأت &copy; {new Date().getFullYear()}</footer>
+                </div>
+            );
+        };
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+    
+</body>
+</html>
