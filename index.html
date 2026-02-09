@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -34,20 +33,29 @@
             transition: all 0.3s ease;
         }
         @media print {
-            @page { size: A4 landscape; margin: 5mm; }
-            html, body { width: 100%; height: auto; }
-            body { background: white !important; color: black !important; }
+            @page { size: A4 landscape; margin: 10mm; }
+            html, body { width: 100%; height: auto; background: white !important; color: black !important; }
             .no-print { display: none !important; }
-
-            main > div { padding: 0 !important; }
-
-            table { border-collapse: collapse !important; width: 100% !important; font-size: 7pt !important; table-layout: fixed; }
-            thead { display: table-header-group; }
-            tr { page-break-inside: avoid; }
-            th, td { border: 1px solid black !important; padding: 2px !important; color: black !important; word-wrap: break-word; overflow: hidden; }
-
-            .print-landscape { transform: scale(0.95); transform-origin: top center; }
+            .print-only { display: block !important; }
+            
+            main { padding: 0 !important; margin: 0 !important; }
+            .payroll-table { 
+                width: 100% !important; 
+                border: 1px solid #000 !important;
+                font-size: 8pt !important;
+            }
+            .payroll-table th, .payroll-table td { 
+                border: 1px solid #000 !important; 
+                padding: 4px 2px !important;
+            }
+            input { border: none !important; background: transparent !important; text-align: center !important; width: 100% !important; }
+            input[type=number] { -moz-appearance: textfield; }
+            input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+            
+            .shadow-2xl, .shadow-xl, .shadow-sm { box-shadow: none !important; }
+            .rounded-[30px], .rounded-[40px] { border-radius: 0 !important; }
         }
+        .print-only { display: none; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -237,6 +245,10 @@
         const Payroll = ({ employees, payrollRecords, setPayrollRecords }) => {
             const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
 
+            const handlePrint = () => {
+                window.print();
+            };
+
             const updateField = (empId, field, value) => {
                 const monthRecords = payrollRecords[selectedMonth] || {};
                 const current = monthRecords[empId] || {
@@ -251,11 +263,10 @@
                 
                 const updated = { ...current, [field]: parseFloat(value) || 0 };
                 
-                // Optional auto-calc logic:
                 const dayRate = (updated.grossSalary || 0) / 30;
                 if (field === 'leaveCount') updated.leaveVal = updated.leaveCount * dayRate;
                 if (field === 'absenceCount') updated.absenceVal = updated.absenceCount * dayRate;
-                if (field === 'lateCount') updated.lateVal = updated.lateCount * (dayRate / 8); // Assuming 8h work day
+                if (field === 'lateCount') updated.lateVal = updated.lateCount * (dayRate / 8);
 
                 setPayrollRecords(prev => ({
                     ...prev,
@@ -271,7 +282,17 @@
             };
 
             return (
-                <div className="space-y-8 animate-fade-in print-landscape">
+                <div className="space-y-8 animate-fade-in">
+                    {/* Official Print Header */}
+                    <div className="print-only mb-8 text-center border-b-2 border-slate-900 pb-6">
+                        <h1 className="text-2xl font-black mb-2">مسير رواتب الموظفين الشهري</h1>
+                        <p className="text-lg font-bold">شهر: {selectedMonth}</p>
+                        <div className="flex justify-between items-end mt-4 text-sm font-bold">
+                            <span>اسم الشركة: .................................</span>
+                            <span>تاريخ الطباعة: {new Date().toLocaleDateString('ar-EG')}</span>
+                        </div>
+                    </div>
+
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
                         <div>
                             <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
@@ -279,9 +300,17 @@
                             </h2>
                             <p className="text-slate-500 font-bold">إدارة المستحقات والاستقطاعات الشهرية</p>
                         </div>
-                        <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
-                            <Icon name="calendar-range" className="text-slate-400" size={20} />
-                            <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="outline-none font-bold text-slate-700 bg-transparent" />
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={handlePrint}
+                                className="bg-slate-900 text-white px-6 py-2.5 rounded-2xl font-black flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all"
+                            >
+                                <Icon name="printer" size={18} /> طباعة المسير / PDF
+                            </button>
+                            <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
+                                <Icon name="calendar-range" className="text-slate-400" size={20} />
+                                <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="outline-none font-bold text-slate-700 bg-transparent" />
+                            </div>
                         </div>
                     </div>
 
@@ -327,31 +356,24 @@
                                                 <td className="px-2 py-3 text-slate-500">{emp.jobTitle}</td>
                                                 <td className="px-1 py-1"><input type="number" value={record.grossSalary || ''} onChange={e => updateField(emp.id, 'grossSalary', e.target.value)} className="w-full text-center bg-transparent focus:bg-white outline-none font-bold" /></td>
                                                 
-                                                {/* Leaves */}
                                                 <td className="px-1 py-1 bg-yellow-50/30"><input type="number" value={record.leaveCount || ''} onChange={e => updateField(emp.id, 'leaveCount', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 <td className="px-1 py-1 bg-yellow-50/30 font-bold"><input type="number" value={Math.round(record.leaveVal) || ''} onChange={e => updateField(emp.id, 'leaveVal', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 
-                                                {/* Sanctions */}
                                                 <td className="px-1 py-1 bg-rose-50/30"><input type="number" value={record.penaltyCount || ''} onChange={e => updateField(emp.id, 'penaltyCount', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 <td className="px-1 py-1 bg-rose-50/30 font-bold"><input type="number" value={record.penaltyVal || ''} onChange={e => updateField(emp.id, 'penaltyVal', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 
-                                                {/* Absence */}
                                                 <td className="px-1 py-1 bg-amber-50/30"><input type="number" value={record.absenceCount || ''} onChange={e => updateField(emp.id, 'absenceCount', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 <td className="px-1 py-1 bg-amber-50/30 font-bold"><input type="number" value={Math.round(record.absenceVal) || ''} onChange={e => updateField(emp.id, 'absenceVal', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 
-                                                {/* Late */}
                                                 <td className="px-1 py-1 bg-sky-50/30"><input type="number" value={record.lateCount || ''} onChange={e => updateField(emp.id, 'lateCount', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 <td className="px-1 py-1 bg-sky-50/30 font-bold"><input type="number" value={Math.round(record.lateVal) || ''} onChange={e => updateField(emp.id, 'lateVal', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 
-                                                {/* Advances */}
                                                 <td className="px-1 py-1 bg-emerald-50/30"><input type="number" value={record.advanceInstallment || ''} onChange={e => updateField(emp.id, 'advanceInstallment', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 <td className="px-1 py-1 bg-emerald-50/30 font-bold"><input type="number" value={record.advanceTotal || ''} onChange={e => updateField(emp.id, 'advanceTotal', e.target.value)} className="w-full text-center bg-transparent outline-none text-[9px] text-slate-400" /></td>
                                                 
-                                                {/* Adjustments */}
                                                 <td className="px-1 py-1 bg-yellow-50/50"><input type="number" value={record.adjDeduction || ''} onChange={e => updateField(emp.id, 'adjDeduction', e.target.value)} className="w-full text-center bg-transparent outline-none text-rose-600" /></td>
                                                 <td className="px-1 py-1 bg-yellow-50/50"><input type="number" value={record.adjAddition || ''} onChange={e => updateField(emp.id, 'adjAddition', e.target.value)} className="w-full text-center bg-transparent outline-none text-emerald-600" /></td>
 
-                                                {/* Totals */}
                                                 <td className="px-2 py-3 bg-rose-50 font-black text-rose-600">{Math.round(totalDeductions).toLocaleString()}</td>
                                                 <td className="px-2 py-3 bg-emerald-50 font-black text-emerald-700 text-xs shadow-inner">{Math.round(netSalary).toLocaleString()}</td>
                                             </tr>
@@ -360,6 +382,13 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+
+                    {/* Print Only Signatures */}
+                    <div className="print-only mt-12 grid grid-cols-3 gap-8 text-center font-bold text-sm">
+                        <div className="border-t-2 border-slate-900 pt-4">المحاسب المالي</div>
+                        <div className="border-t-2 border-slate-900 pt-4">مدير الموارد البشرية</div>
+                        <div className="border-t-2 border-slate-900 pt-4">المدير العام</div>
                     </div>
                 </div>
             );
@@ -669,27 +698,6 @@
                             </table>
                         </div>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 no-print">
-                        <div className="bg-white p-6 rounded-[30px] border border-slate-100 shadow-lg flex items-center gap-4">
-                            <div className="w-12 h-12 bg-pink-100 text-pink-600 rounded-2xl flex items-center justify-center">
-                                <Icon name="info" size={24} />
-                            </div>
-                            <div>
-                                <h4 className="font-black text-slate-800 text-sm">كيفية التسجيل</h4>
-                                <p className="text-[10px] font-bold text-slate-500 leading-relaxed">أدخل الرقم مباشرة أو استخدم زر (+) لإضافة نصف يوم (0.5) في وضع التعديل.</p>
-                            </div>
-                        </div>
-                        <div className="bg-slate-900 p-6 rounded-[30px] shadow-lg flex items-center gap-4 text-white">
-                            <div className="w-12 h-12 bg-white/10 text-white rounded-2xl flex items-center justify-center">
-                                <Icon name="calculator" size={24} />
-                            </div>
-                            <div>
-                                <h4 className="font-black text-sm">الحساب التلقائي</h4>
-                                <p className="text-[10px] font-bold text-white/60 leading-relaxed">يتم خصم مجموع الشهور تلقائياً من الرصيد الكلي لعرض الأيام المتبقية بدقة.</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             );
         };
@@ -934,7 +942,7 @@
                                                 <td className="px-4 py-4">{isEditing ? <input type="date" className="w-32 p-1 border rounded text-xs" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} /> : <span className="font-mono text-[10px] text-slate-400">{record.startDate || '---'}</span>}</td>
                                                 <td className="px-4 py-4">{isEditing ? <input type="number" className="w-20 p-1 border rounded text-xs font-bold" value={formData.insuranceSalary} onChange={e => setFormData({...formData, insuranceSalary: e.target.value})} /> : <span className="font-bold text-sky-700">{record.insuranceSalary ? `${record.insuranceSalary} ج.م` : '---'}</span>}</td>
                                                 <td className="px-4 py-4">{isEditing ? <input type="text" className="w-28 p-1 border rounded text-xs" value={formData.insuranceOffice} onChange={e => setFormData({...formData, insuranceOffice: e.target.value})} /> : <span className="text-xs text-slate-500">{record.insuranceOffice || '---'}</span>}</td>
-                                                <td className="px-4 py-4 text-center">{isEditing ? <div className="flex items-center gap-1 justify-center"><input type="text" className="w-10 p-1 border rounded text-[10px]" value={formData.ratioCompany} onChange={e => setFormData({...formData, ratioCompany: e.target.value})} /><span className="text-slate-300">/</span><input type="text" className="w-10 p-1 border rounded text-[10px]" value={formData.ratioEmployee} onChange={e => setFormData({...formData, ratioEmployee: e.target.value})} /></div> : <span className="text-[10px] font-bold text-slate-400">{record.ratioCompany || '18.75'}% / {record.ratioEmployee || '11'}%</span>}</td>
+                                                <td className="px-4 py-4 text-center">{isEditing ? <div className="flex items-center gap-1 justify-center"><input type="text" className="w-10 p-1 border rounded text-[10px]" value={formData.ratioCompany} onChange={e => setFormData({...formData, ratioCompany} ) } /><span className="text-slate-300">/</span><input type="text" className="w-10 p-1 border rounded text-[10px]" value={formData.ratioEmployee} onChange={e => setFormData({...formData, ratioEmployee: e.target.value})} /></div> : <span className="text-[10px] font-bold text-slate-400">{record.ratioCompany || '18.75'}% / {record.ratioEmployee || '11'}%</span>}</td>
                                                 <td className="px-4 py-4 text-center no-print">{isEditing ? <button onClick={() => saveRecord(emp.id)} className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"><Icon name="check" size={14} /></button> : <button onClick={() => startEditing(emp)} className="p-2 bg-slate-100 text-slate-400 rounded-lg hover:bg-sky-500 hover:text-white transition-all"><Icon name="edit" size={14} /></button>}</td>
                                             </tr>
                                         );
@@ -1010,7 +1018,6 @@
                         </div>
                     </div>
                     {showModal && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="w-full max-w-4xl p-10 rounded-[50px] shadow-2xl animate-fade-in border bg-white border-slate-200"><div className="flex justify-between items-center mb-8"><h3 className="text-3xl font-black text-slate-800">{editingEmp ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد'}</h3><button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-rose-500"><Icon name="x" size={32} /></button></div><form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الاسم الكامل</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الكود الوظيفي</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">تاريخ التعيين</label><input required type="date" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.joinDate} onChange={(e) => setFormData({...formData, joinDate: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الإدارة</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">المسمى الوظيفي</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.jobTitle} onChange={(e) => setFormData({...formData, jobTitle: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الرقم القومي</label><input required type="text" maxLength="14" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.nationalId} onChange={(e) => setFormData({...formData, nationalId: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">رقم الهاتف</label><input required type="tel" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} /></div><div className="md:col-span-2 space-y-1"><label className="text-xs font-black text-slate-500 uppercase">العنوان السكني</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} /></div><div className="md:col-span-3 pt-6"><button type="submit" className="w-full bg-indigo-600 text-white font-black py-4 rounded-3xl text-xl shadow-xl hover:bg-indigo-700 transition-all">حفظ البيانات</button></div></form></div></div>)}
-                    {showDeleteConfirm && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="w-full max-md p-10 rounded-[40px] shadow-2xl animate-fade-in border bg-white border-slate-200"><div className="text-center"><Icon name="alert-triangle" size={48} className="text-rose-500 mx-auto mb-4" /><h3 className="text-2xl font-black mb-2 text-slate-800">تأكيد عملية الحذف</h3><p className="text-slate-500 font-bold mb-8">سيتم حذف بيانات الموظف نهائياً من سجلات النظام</p><div className="flex gap-4"><button onClick={() => { onDeleteEmployee(deletingEmpId); setShowDeleteConfirm(false); }} className="flex-1 bg-rose-600 text-white font-black py-4 rounded-2xl hover:bg-rose-700 transition-all">حذف نهائي</button><button onClick={() => setShowDeleteConfirm(false)} className="flex-1 bg-slate-200 text-slate-700 font-black py-4 rounded-2xl hover:bg-slate-300 transition-all">إلغاء</button></div></div></div></div>)}
                 </div>
             );
         };
