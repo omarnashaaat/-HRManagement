@@ -33,27 +33,59 @@
             transition: all 0.3s ease;
         }
         @media print {
-            @page { size: A4 landscape; margin: 10mm; }
-            html, body { width: 100%; height: auto; background: white !important; color: black !important; }
+            @page { 
+                size: A4 landscape; 
+                margin: 5mm; 
+            }
+            html, body { 
+                width: 100%; 
+                height: auto; 
+                background: white !important; 
+                color: black !important; 
+                margin: 0;
+                padding: 0;
+            }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             
             main { padding: 0 !important; margin: 0 !important; }
             .payroll-table { 
                 width: 100% !important; 
-                border: 1px solid #000 !important;
-                font-size: 8pt !important;
+                border: 1px solid #333 !important;
+                font-size: 7.5pt !important;
+                border-collapse: collapse !important;
             }
             .payroll-table th, .payroll-table td { 
-                border: 1px solid #000 !important; 
-                padding: 4px 2px !important;
+                border: 1px solid #333 !important; 
+                padding: 2px !important;
+                line-height: 1.2 !important;
             }
-            input { border: none !important; background: transparent !important; text-align: center !important; width: 100% !important; }
+            .payroll-table th {
+                background-color: #f8fafc !important;
+                color: black !important;
+                -webkit-print-color-adjust: exact;
+            }
+            input { 
+                border: none !important; 
+                background: transparent !important; 
+                text-align: center !important; 
+                width: 100% !important; 
+                color: black !important;
+                font-size: inherit !important;
+            }
             input[type=number] { -moz-appearance: textfield; }
             input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
             
             .shadow-2xl, .shadow-xl, .shadow-sm { box-shadow: none !important; }
             .rounded-[30px], .rounded-[40px] { border-radius: 0 !important; }
+            
+            .print-signatures {
+                display: grid !important;
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 20px !important;
+                margin-top: 30px !important;
+                text-align: center !important;
+            }
         }
         .print-only { display: none; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -284,11 +316,11 @@
             return (
                 <div className="space-y-8 animate-fade-in">
                     {/* Official Print Header */}
-                    <div className="print-only mb-8 text-center border-b-2 border-slate-900 pb-6">
-                        <h1 className="text-2xl font-black mb-2">مسير رواتب الموظفين الشهري</h1>
-                        <p className="text-lg font-bold">شهر: {selectedMonth}</p>
-                        <div className="flex justify-between items-end mt-4 text-sm font-bold">
-                            <span>اسم الشركة: .................................</span>
+                    <div className="print-only mb-6 text-center border-b-2 border-slate-900 pb-4">
+                        <h1 className="text-xl font-black mb-1">مسير رواتب الموظفين الشهري</h1>
+                        <p className="text-base font-bold">لشهر: {selectedMonth}</p>
+                        <div className="flex justify-between items-end mt-2 text-xs font-bold">
+                            <span>اسم المنشأة: .................................</span>
                             <span>تاريخ الطباعة: {new Date().toLocaleDateString('ar-EG')}</span>
                         </div>
                     </div>
@@ -319,27 +351,27 @@
                             <table className="w-full text-[10px] text-center payroll-table border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 text-slate-700 font-black">
-                                        <th rowSpan="2" className="px-2 py-3 bg-slate-100">م</th>
-                                        <th rowSpan="2" className="px-2 py-3 bg-slate-100 min-w-[50px]">الكود</th>
-                                        <th rowSpan="2" className="px-4 py-3 bg-slate-100 min-w-[150px] text-right">اسم الموظف</th>
-                                        <th rowSpan="2" className="px-2 py-3 bg-slate-100 min-w-[80px]">تاريخ التعيين</th>
-                                        <th rowSpan="2" className="px-3 py-3 bg-slate-100 min-w-[100px]">الوظيفة</th>
-                                        <th rowSpan="2" className="px-3 py-3 bg-slate-100 min-w-[80px]">الراتب الإجمالي</th>
-                                        <th colSpan="2" className="bg-yellow-400 text-white">الأجازة بالخصم</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100">م</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 min-w-[30px]">الكود</th>
+                                        <th rowSpan="2" className="px-2 py-2 bg-slate-100 min-w-[120px] text-right">اسم الموظف</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 min-w-[70px]">تاريخ التعيين</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 min-w-[90px]">الوظيفة</th>
+                                        <th rowSpan="2" className="px-2 py-2 bg-slate-100 min-w-[70px]">الراتب الإجمالي</th>
+                                        <th colSpan="2" className="bg-yellow-400 text-white">الأجازة بخصم</th>
                                         <th colSpan="2" className="bg-rose-600 text-white">الجزاءات</th>
                                         <th colSpan="2" className="bg-amber-500 text-white">الغياب</th>
                                         <th colSpan="2" className="bg-sky-500 text-white">التأخير</th>
                                         <th colSpan="2" className="bg-emerald-500 text-white">السُلف</th>
                                         <th colSpan="2" className="bg-yellow-200 text-slate-800 border-yellow-300">تسويات</th>
-                                        <th rowSpan="2" className="px-3 py-3 bg-rose-50 text-rose-700 min-w-[80px]">إجمالي الاستقطاعات</th>
-                                        <th rowSpan="2" className="px-3 py-3 bg-emerald-50 text-emerald-700 font-black text-xs min-w-[90px]">صافي الراتب</th>
+                                        <th rowSpan="2" className="px-2 py-2 bg-rose-50 text-rose-700 min-w-[70px]">إجمالي استقطاع</th>
+                                        <th rowSpan="2" className="px-2 py-2 bg-emerald-50 text-emerald-700 font-black text-xs min-w-[80px]">صافي الراتب</th>
                                     </tr>
                                     <tr className="bg-slate-50 text-slate-600 font-bold">
-                                        <th className="bg-yellow-100">العدد</th><th className="bg-yellow-100">القيمة</th>
-                                        <th className="bg-rose-100">العدد</th><th className="bg-rose-100">القيمة</th>
-                                        <th className="bg-amber-100">العدد</th><th className="bg-amber-100">القيمة</th>
-                                        <th className="bg-sky-100">العدد</th><th className="bg-sky-100">القيمة</th>
-                                        <th className="bg-emerald-100">القسط</th><th className="bg-emerald-100">القيمة</th>
+                                        <th className="bg-yellow-100">عدد</th><th className="bg-yellow-100">قيمة</th>
+                                        <th className="bg-rose-100">عدد</th><th className="bg-rose-100">قيمة</th>
+                                        <th className="bg-amber-100">عدد</th><th className="bg-amber-100">قيمة</th>
+                                        <th className="bg-sky-100">عدد</th><th className="bg-sky-100">قيمة</th>
+                                        <th className="bg-emerald-100">قسط</th><th className="bg-emerald-100">قيمة</th>
                                         <th className="bg-yellow-50">خصم</th><th className="bg-yellow-50">إضافة</th>
                                     </tr>
                                 </thead>
@@ -349,11 +381,11 @@
                                         const { totalDeductions, netSalary } = calculateTotals(record);
                                         return (
                                             <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
-                                                <td className="px-1 py-3 font-bold text-slate-400">{i + 1}</td>
-                                                <td className="px-1 py-3 font-mono font-bold text-indigo-600">{emp.code}</td>
-                                                <td className="px-3 py-3 text-right font-black text-slate-800">{emp.name}</td>
-                                                <td className="px-1 py-3 text-[9px] font-mono">{emp.joinDate}</td>
-                                                <td className="px-2 py-3 text-slate-500">{emp.jobTitle}</td>
+                                                <td className="px-1 py-2 font-bold text-slate-400">{i + 1}</td>
+                                                <td className="px-1 py-2 font-mono font-bold text-indigo-600">{emp.code}</td>
+                                                <td className="px-2 py-2 text-right font-black text-slate-800">{emp.name}</td>
+                                                <td className="px-1 py-2 text-[9px] font-mono">{emp.joinDate}</td>
+                                                <td className="px-1 py-2 text-slate-500">{emp.jobTitle}</td>
                                                 <td className="px-1 py-1"><input type="number" value={record.grossSalary || ''} onChange={e => updateField(emp.id, 'grossSalary', e.target.value)} className="w-full text-center bg-transparent focus:bg-white outline-none font-bold" /></td>
                                                 
                                                 <td className="px-1 py-1 bg-yellow-50/30"><input type="number" value={record.leaveCount || ''} onChange={e => updateField(emp.id, 'leaveCount', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
@@ -369,13 +401,13 @@
                                                 <td className="px-1 py-1 bg-sky-50/30 font-bold"><input type="number" value={Math.round(record.lateVal) || ''} onChange={e => updateField(emp.id, 'lateVal', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 
                                                 <td className="px-1 py-1 bg-emerald-50/30"><input type="number" value={record.advanceInstallment || ''} onChange={e => updateField(emp.id, 'advanceInstallment', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
-                                                <td className="px-1 py-1 bg-emerald-50/30 font-bold"><input type="number" value={record.advanceTotal || ''} onChange={e => updateField(emp.id, 'advanceTotal', e.target.value)} className="w-full text-center bg-transparent outline-none text-[9px] text-slate-400" /></td>
+                                                <td className="px-1 py-1 bg-emerald-50/30 font-bold"><input type="number" value={record.advanceTotal || ''} onChange={e => updateField(emp.id, 'advanceTotal', e.target.value)} className="w-full text-center bg-transparent outline-none text-[8px] text-slate-400" /></td>
                                                 
                                                 <td className="px-1 py-1 bg-yellow-50/50"><input type="number" value={record.adjDeduction || ''} onChange={e => updateField(emp.id, 'adjDeduction', e.target.value)} className="w-full text-center bg-transparent outline-none text-rose-600" /></td>
                                                 <td className="px-1 py-1 bg-yellow-50/50"><input type="number" value={record.adjAddition || ''} onChange={e => updateField(emp.id, 'adjAddition', e.target.value)} className="w-full text-center bg-transparent outline-none text-emerald-600" /></td>
 
-                                                <td className="px-2 py-3 bg-rose-50 font-black text-rose-600">{Math.round(totalDeductions).toLocaleString()}</td>
-                                                <td className="px-2 py-3 bg-emerald-50 font-black text-emerald-700 text-xs shadow-inner">{Math.round(netSalary).toLocaleString()}</td>
+                                                <td className="px-1 py-2 bg-rose-50 font-black text-rose-600">{Math.round(totalDeductions).toLocaleString()}</td>
+                                                <td className="px-1 py-2 bg-emerald-50 font-black text-emerald-700 text-xs shadow-inner">{Math.round(netSalary).toLocaleString()}</td>
                                             </tr>
                                         );
                                     })}
@@ -384,11 +416,17 @@
                         </div>
                     </div>
 
-                    {/* Print Only Signatures */}
-                    <div className="print-only mt-12 grid grid-cols-3 gap-8 text-center font-bold text-sm">
-                        <div className="border-t-2 border-slate-900 pt-4">المحاسب المالي</div>
-                        <div className="border-t-2 border-slate-900 pt-4">مدير الموارد البشرية</div>
-                        <div className="border-t-2 border-slate-900 pt-4">المدير العام</div>
+                    {/* Official Print Signatures Section */}
+                    <div className="print-only mt-10 print-signatures font-black text-sm">
+                        <div className="flex flex-col items-center">
+                            <div className="border-t-2 border-slate-900 w-full pt-3">مدير حسابات</div>
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <div className="border-t-2 border-slate-900 w-full pt-3">مدير الموارد البشرية</div>
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <div className="border-t-2 border-slate-900 w-full pt-3">المدير التنفيذى</div>
+                        </div>
                     </div>
                 </div>
             );
