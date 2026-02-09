@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -77,9 +78,11 @@
             -webkit-appearance: none;
             margin: 0;
         }
-    </style>
 
-<link rel="stylesheet" href="/src/index.css">
+        .scroll-hidden::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
@@ -233,7 +236,7 @@
             );
         };
 
-        const Settings = ({ companyName, setCompanyName, appData, onRestore }) => {
+        const Settings = ({ appData, onRestore }) => {
             const fileInputRef = useRef(null);
 
             const handleBackup = () => {
@@ -242,7 +245,7 @@
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                link.download = `HR_Tiba_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+                link.download = `HR_Coordinator_Backup_${new Date().toISOString().slice(0, 10)}.json`;
                 link.click();
                 URL.revokeObjectURL(url);
             };
@@ -312,23 +315,6 @@
                             </div>
                         </div>
 
-                        {/* Company Name Section */}
-                        <div className="space-y-6">
-                            <div className="flex flex-col space-y-2">
-                                <label className="text-sm font-black text-slate-700 mr-2">اسم الشركة (يظهر في التقارير)</label>
-                                <div className="relative">
-                                    <Icon name="building" className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                                    <input 
-                                        type="text" 
-                                        value={companyName}
-                                        onChange={(e) => setCompanyName(e.target.value)}
-                                        placeholder="أدخل اسم شركتك هنا..."
-                                        className="w-full pr-14 pl-6 py-5 rounded-2xl border-2 border-slate-100 font-bold text-slate-700 focus:border-blue-500 outline-none transition-all bg-slate-50/30"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
                         {/* System Info */}
                         <div className="pt-6 border-t border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-2 text-emerald-600">
@@ -353,7 +339,7 @@
 
         const INITIAL_EMPLOYEES = [
             { id: '1', code: '101', name: 'أحمد محمد علي', jobTitle: 'مدير مبيعات', department: 'المبيعات', status: 'نشط', joinDate: '2023-01-15', totalLeaves: 21, monthlyLeaves: Array(12).fill(0), notes: '', nationalId: '29001011234567', phone: '01012345678', address: 'القاهرة - مدينة نصر' },
-            { id: '2', code: '102', name: 'سارة محمود حسن', jobTitle: 'محاسب مالي', department: 'المالية', status: 'نشط', joinDate: '2023-03-10', totalLeaves: 30, monthlyLeaves: [1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], notes: 'مجتهدة جداً', nationalId: '29505021234568', phone: '01122334455', address: 'الجيزة - الدقي' },
+            { id: '2', code: '102', name: 'سارة محمود حسن', jobTitle: 'محاسب مالي', department: 'المالية', status: 'نشط', joinDate: '2023-03-10', totalLeaves: 30, monthlyLeaves: [1.5, 2, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0], notes: 'مجتهدة جداً', nationalId: '29505021234568', phone: '01122334455', address: 'الجيزة - الدقي' },
         ];
 
         const Dashboard = ({ setActiveTab, userName }) => {
@@ -410,38 +396,57 @@
                 setEditingId(null);
             };
 
-            const calculateTotalConsumed = (monthlyLeaves) => (monthlyLeaves || []).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
+            const calculateTotalConsumed = (monthlyLeaves) => (monthlyLeaves || []).reduce((acc, curr) => acc + (parseFloat(curr) || 0), 0);
+
+            const handleQuickAdd = (idx) => {
+                const newMonthly = [...editData.monthlyLeaves];
+                newMonthly[idx] = (parseFloat(newMonthly[idx]) || 0) + 0.5;
+                setEditData({...editData, monthlyLeaves: newMonthly});
+            };
+
+            const handleClear = (idx) => {
+                const newMonthly = [...editData.monthlyLeaves];
+                newMonthly[idx] = 0;
+                setEditData({...editData, monthlyLeaves: newMonthly});
+            };
 
             return (
-                <div className="space-y-8 animate-fade-in">
-                    <div className="flex justify-between items-center no-print">
+                <div className="space-y-8 animate-fade-in pb-10">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
                         <div>
                             <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-                                <Icon name="calendar-days" className="text-pink-600" size={32} /> سجل غيابات الموظفين (12 شهر)
+                                <Icon name="calendar-days" className="text-pink-600" size={32} /> سجل غيابات الموظفين السنوي
                             </h2>
-                            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">إدارة الرصيد السنوي واستهلاك الشهور</p>
+                            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">إدارة الرصيد واستهلاك الأيام والكسور (0.5)</p>
                         </div>
-                        {editingId && (
+                        {editingId ? (
                             <div className="flex gap-3">
-                                <button onClick={saveEdit} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black shadow-lg hover:bg-pink-600 transition-all">حفظ التعديلات</button>
-                                <button onClick={() => setEditingId(null)} className="bg-slate-200 text-slate-700 px-6 py-3 rounded-2xl font-black hover:bg-slate-300 transition-all">إلغاء</button>
+                                <button onClick={saveEdit} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black shadow-lg hover:bg-pink-600 transition-all flex items-center gap-2">
+                                    <Icon name="save" size={18} /> حفظ التعديلات
+                                </button>
+                                <button onClick={() => setEditingId(null)} className="bg-white text-slate-500 px-6 py-3 rounded-2xl font-black border-2 border-slate-100 hover:bg-slate-50 transition-all">إلغاء</button>
                             </div>
+                        ) : (
+                           <div className="bg-pink-50 text-pink-700 px-4 py-2 rounded-2xl border border-pink-100 flex items-center gap-2 animate-pulse">
+                               <Icon name="info" size={16} />
+                               <span className="text-xs font-black">يمكنك إضافة نصف يوم (0.5) في وضع التعديل</span>
+                           </div>
                         )}
                     </div>
 
                     <div className="rounded-[40px] shadow-2xl overflow-hidden border bg-white border-slate-100">
                         <div className="overflow-x-auto">
                             <table className="w-full text-center border-collapse text-[11px]">
-                                <thead className="bg-pink-50 text-pink-800 font-black uppercase tracking-wider border-b border-pink-100">
+                                <thead className="bg-slate-50 text-slate-500 font-black uppercase tracking-wider border-b border-slate-200">
                                     <tr>
-                                        <th className="px-4 py-6 border-l border-pink-200 sticky right-0 z-20 bg-pink-50 min-w-[150px] text-right">الموظف</th>
-                                        <th className="px-2 py-6 border-l border-pink-200 min-w-[70px]">الرصيد الكلي</th>
+                                        <th className="px-4 py-6 border-l border-slate-200 sticky right-0 z-30 bg-slate-50 min-w-[150px] text-right">الموظف</th>
+                                        <th className="px-2 py-6 border-l border-slate-200 min-w-[80px] bg-slate-50/50">الرصيد الكلي</th>
                                         {months.map((m, i) => (
-                                            <th key={i} className="px-1 py-6 border-l border-pink-200 min-w-[45px]">{m}</th>
+                                            <th key={i} className="px-1 py-6 border-l border-slate-200 min-w-[60px]">{m}</th>
                                         ))}
-                                        <th className="px-2 py-6 border-l border-pink-200 min-w-[70px]">المتبقي</th>
-                                        <th className="px-4 py-6 border-l border-pink-200 min-w-[150px]">ملاحظات</th>
-                                        <th className="px-2 py-6 no-print min-w-[60px]">تعديل</th>
+                                        <th className="px-2 py-6 border-l border-slate-200 min-w-[80px] bg-slate-50/50">المتبقي</th>
+                                        <th className="px-4 py-6 border-l border-slate-200 min-w-[180px]">ملاحظات</th>
+                                        <th className="px-4 py-6 no-print min-w-[80px]">إجراء</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -449,69 +454,83 @@
                                         const isEditing = editingId === emp.id;
                                         const data = isEditing ? editData : emp;
                                         const consumed = calculateTotalConsumed(data.monthlyLeaves);
-                                        const remaining = (Number(data.totalLeaves) || 0) - consumed;
+                                        const remaining = (parseFloat(data.totalLeaves) || 0) - consumed;
 
                                         return (
-                                            <tr key={emp.id} className={`${isEditing ? 'bg-pink-50/50' : 'hover:bg-slate-50'} transition-all group`}>
-                                                <td className="px-4 py-4 border-l font-black text-right sticky right-0 z-10 bg-inherit shadow-sm">
+                                            <tr key={emp.id} className={`${isEditing ? 'bg-pink-50/30' : 'hover:bg-slate-50/50'} transition-all group`}>
+                                                <td className="px-4 py-4 border-l font-black text-right sticky right-0 z-20 bg-inherit shadow-[4px_0_10px_-5px_rgba(0,0,0,0.05)]">
                                                     <div className="flex flex-col">
                                                         <span className="text-slate-800 text-xs">{emp.name}</span>
-                                                        <span className="text-[9px] text-slate-400">كود: {emp.code}</span>
+                                                        <span className="text-[9px] text-slate-400 font-mono">CODE: {emp.code}</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-2 py-4 border-l">
+                                                <td className="px-2 py-4 border-l bg-slate-50/30">
                                                     {isEditing ? (
                                                         <input 
                                                             type="number" 
-                                                            className="w-full text-center bg-white border rounded p-1 font-black text-pink-600 focus:outline-pink-400" 
+                                                            step="0.5"
+                                                            className="w-full text-center bg-white border border-slate-200 rounded-lg py-1.5 font-black text-slate-900 focus:ring-2 focus:ring-pink-500 outline-none" 
                                                             value={data.totalLeaves} 
                                                             onChange={e => setEditData({...editData, totalLeaves: e.target.value})} 
                                                         />
                                                     ) : (
-                                                        <span className="font-black text-slate-700">{emp.totalLeaves || 0}</span>
+                                                        <span className="font-black text-slate-700 text-sm">{emp.totalLeaves || 0}</span>
                                                     )}
                                                 </td>
                                                 {(data.monthlyLeaves || Array(12).fill(0)).map((val, idx) => (
-                                                    <td key={idx} className={`px-0 py-4 border-l ${val > 0 ? 'bg-pink-500/5' : ''}`}>
+                                                    <td key={idx} className={`px-1 py-4 border-l transition-all ${val > 0 ? 'bg-pink-500/5' : ''}`}>
                                                         {isEditing ? (
-                                                            <input 
-                                                                type="number" 
-                                                                className="w-full text-center bg-transparent outline-none focus:bg-white text-rose-500 font-bold" 
-                                                                value={val === 0 ? '' : val} 
-                                                                placeholder="0"
-                                                                onChange={e => {
-                                                                    const newMonthly = [...data.monthlyLeaves];
-                                                                    newMonthly[idx] = parseInt(e.target.value) || 0;
-                                                                    setEditData({...editData, monthlyLeaves: newMonthly});
-                                                                }} 
-                                                            />
+                                                            <div className="flex flex-col items-center gap-1">
+                                                                <input 
+                                                                    type="number" 
+                                                                    step="0.5"
+                                                                    className="w-full text-center bg-transparent border-none outline-none text-rose-600 font-black text-sm p-0 focus:bg-white focus:ring-1 focus:ring-pink-200 rounded" 
+                                                                    value={val === 0 ? '' : val} 
+                                                                    placeholder="0"
+                                                                    onChange={e => {
+                                                                        const newMonthly = [...data.monthlyLeaves];
+                                                                        newMonthly[idx] = parseFloat(e.target.value) || 0;
+                                                                        setEditData({...editData, monthlyLeaves: newMonthly});
+                                                                    }} 
+                                                                />
+                                                                <div className="flex gap-0.5 no-print">
+                                                                    <button onClick={() => handleQuickAdd(idx)} className="p-0.5 rounded bg-pink-100 text-pink-600 hover:bg-pink-600 hover:text-white transition-colors" title="إضافة نصف يوم">
+                                                                        <Icon name="plus" size={10} />
+                                                                    </button>
+                                                                    <button onClick={() => handleClear(idx)} className="p-0.5 rounded bg-slate-100 text-slate-400 hover:bg-rose-500 hover:text-white transition-colors" title="تصفير">
+                                                                        <Icon name="rotate-ccw" size={10} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                         ) : (
-                                                            <span className={`font-bold ${val > 0 ? 'text-rose-500' : 'text-slate-300'}`}>{val || '-'}</span>
+                                                            <span className={`font-black text-sm ${val > 0 ? 'text-rose-500' : 'text-slate-300'}`}>{val || '-'}</span>
                                                         )}
                                                     </td>
                                                 ))}
-                                                <td className={`px-2 py-4 border-l font-black ${remaining < 0 ? 'text-rose-600 bg-rose-50' : 'text-emerald-600 bg-emerald-50'}`}>
-                                                    {remaining}
+                                                <td className={`px-2 py-4 border-l font-black text-sm bg-slate-50/30 ${remaining < 3 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                    {remaining % 1 === 0 ? remaining : remaining.toFixed(1)}
                                                 </td>
                                                 <td className="px-4 py-4 border-l text-right">
                                                     {isEditing ? (
-                                                        <input 
-                                                            type="text" 
-                                                            className="w-full bg-white border rounded p-1 text-[10px] outline-pink-400" 
+                                                        <textarea 
+                                                            rows="1"
+                                                            className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-[10px] outline-none focus:ring-2 focus:ring-pink-500 resize-none" 
                                                             value={data.notes} 
                                                             onChange={e => setEditData({...editData, notes: e.target.value})} 
+                                                            placeholder="أضف ملاحظات..."
                                                         />
                                                     ) : (
-                                                        <span className="text-slate-400 italic text-[10px] truncate max-w-[150px] block">{emp.notes || '---'}</span>
+                                                        <span className="text-slate-400 font-bold text-[10px] line-clamp-2 leading-relaxed">{emp.notes || 'لا توجد ملاحظات'}</span>
                                                     )}
                                                 </td>
-                                                <td className="px-2 py-4 text-center no-print">
+                                                <td className="px-4 py-4 text-center no-print">
                                                     {!isEditing && (
                                                         <button 
                                                             onClick={() => startEditing(emp)} 
-                                                            className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-pink-600 hover:text-white transition-all"
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-pink-600 hover:text-white transition-all shadow-sm border border-slate-100 group-hover:scale-105"
                                                         >
                                                             <Icon name="edit-3" size={14} />
+                                                            <span className="text-[10px] font-black">تعديل</span>
                                                         </button>
                                                     )}
                                                 </td>
@@ -522,8 +541,26 @@
                             </table>
                         </div>
                     </div>
-                    <div className="bg-slate-50 p-6 rounded-[30px] border-2 border-slate-100 no-print">
-                        <p className="text-slate-500 text-[10px] font-bold text-center">المعادلة: الرصيد المتبقي = (الرصيد الكلي يدوي) - (مجموع غيابات الـ 12 شهر)</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 no-print">
+                        <div className="bg-white p-6 rounded-[30px] border border-slate-100 shadow-lg flex items-center gap-4">
+                            <div className="w-12 h-12 bg-pink-100 text-pink-600 rounded-2xl flex items-center justify-center">
+                                <Icon name="info" size={24} />
+                            </div>
+                            <div>
+                                <h4 className="font-black text-slate-800 text-sm">كيفية التسجيل</h4>
+                                <p className="text-[10px] font-bold text-slate-500 leading-relaxed">أدخل الرقم مباشرة أو استخدم زر (+) لإضافة نصف يوم (0.5) في وضع التعديل.</p>
+                            </div>
+                        </div>
+                        <div className="bg-slate-900 p-6 rounded-[30px] shadow-lg flex items-center gap-4 text-white">
+                            <div className="w-12 h-12 bg-white/10 text-white rounded-2xl flex items-center justify-center">
+                                <Icon name="calculator" size={24} />
+                            </div>
+                            <div>
+                                <h4 className="font-black text-sm">الحساب التلقائي</h4>
+                                <p className="text-[10px] font-bold text-white/60 leading-relaxed">يتم خصم مجموع الشهور تلقائياً من الرصيد الكلي لعرض الأيام المتبقية بدقة.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             );
@@ -859,11 +896,6 @@
             const [contractRecords, setContractRecords] = useState({});
             const [attendanceLog, setAttendanceLog] = useState({});
             const [currentTime, setCurrentTime] = useState(new Date());
-            const [companyName, setCompanyName] = useState(() => localStorage.getItem('hr_tiba_company_name') || 'شركة طيبة للتجارة');
-
-            useEffect(() => {
-                localStorage.setItem('hr_tiba_company_name', companyName);
-            }, [companyName]);
 
             useEffect(() => {
                 const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -880,7 +912,6 @@
                 if (data.attendanceLog) setAttendanceLog(data.attendanceLog);
                 if (data.insuranceRecords) setInsuranceRecords(data.insuranceRecords);
                 if (data.contractRecords) setContractRecords(data.contractRecords);
-                if (data.companyName) setCompanyName(data.companyName);
             };
 
             const formattedDate = currentTime.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -909,7 +940,6 @@
                             <div className="p-3 rounded-2xl shadow-xl bg-slate-900 text-white"><Icon name="layout-grid" size={24} /></div>
                             <div className="flex flex-col">
                                 <span className="text-2xl font-black tracking-tighter hidden sm:block text-slate-800 leading-none">المنسق HR</span>
-                                <span className="text-[10px] font-black text-indigo-500 hidden sm:block truncate max-w-[150px]">{companyName}</span>
                             </div>
                         </div>
                         <div className="flex-1 flex justify-center items-center gap-6 px-4">
@@ -957,7 +987,7 @@
                         ) : activeTab === 'contracts' ? (
                             <Contracts employees={employees} contractRecords={contractRecords} setContractRecords={setContractRecords} />
                         ) : activeTab === 'settings' ? (
-                            <Settings companyName={companyName} setCompanyName={setCompanyName} appData={{ employees, attendanceLog, insuranceRecords, contractRecords, companyName }} onRestore={handleRestore} />
+                            <Settings appData={{ employees, attendanceLog, insuranceRecords, contractRecords }} onRestore={handleRestore} />
                         ) : (
                             <div className="text-center py-40 text-slate-300 font-black text-4xl uppercase tracking-[0.2em] animate-pulse">سيتم التفعيل قريباً</div>
                         )}
