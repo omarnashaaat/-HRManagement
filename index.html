@@ -86,8 +86,8 @@
                 margin: 0 !important;
                 width: 100% !important;
                 max-width: none !important;
-                height: 275mm !important;
-                max-height: 275mm !important;
+                height: 250mm !important;
+                max-height: 250mm !important;
                 box-sizing: border-box !important;
                 box-shadow: none !important;
                 background: white !important;
@@ -2230,8 +2230,8 @@
             };
 
             return (
-                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 print:static print:bg-transparent print:p-0">
-                    <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden animate-fade-in border border-slate-200 flex flex-col max-h-[90vh] print:max-w-none print:border-none print:shadow-none print:rounded-none print:max-h-none print:block">
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 print:static print:bg-transparent print:p-0 print:m-0">
+                    <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden animate-fade-in border border-slate-200 flex flex-col max-h-[90vh] print:max-w-none print:border-none print:shadow-none print:rounded-none print:max-h-none print:block print:m-0 print:p-0">
                         <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print shrink-0">
                             <div className="flex items-center gap-3 w-full sm:w-auto">
                                 <div className={`p-2 rounded-xl shrink-0 ${type === 'warning' ? 'bg-rose-50 text-rose-600' : 'bg-indigo-50 text-indigo-600'}`}>
@@ -2411,7 +2411,7 @@
             };
             const handleSubmit = (e) => { e.preventDefault(); editingEmp ? onUpdateEmployee({ ...formData, id: editingEmp.id }) : onAddEmployee(formData); setShowModal(false); };
             return (
-                <div className="space-y-6 animate-fade-in">
+                <div className={`animate-fade-in ${warningEmp ? 'print:space-y-0 print:m-0 print:p-0' : 'space-y-6'}`}>
                     <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${warningEmp ? 'print:hidden' : ''}`}><div><h2 className="text-3xl font-black text-slate-800">قائمة الموظفين</h2><p className="text-slate-500 font-bold">إدارة بيانات الكادر البشري في النظام</p></div><div className="flex flex-wrap items-center gap-3"><div className="relative"><Icon name="filter" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /><select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="pr-10 pl-4 py-2.5 rounded-2xl border-2 font-bold focus:outline-none bg-white border-slate-200 text-slate-700 appearance-none cursor-pointer"><option value="all">كافة الأقسام</option>{departmentsList.filter(d => d !== 'all').map(d => <option key={d} value={d}>{d}</option>)}</select></div><input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} />
 <button onClick={() => fileInputRef.current.click()} className="px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg bg-emerald-50 text-emerald-700 border border-emerald-100"><Icon name="file-spreadsheet" size={20} /> استيراد Excel</button>
 <button onClick={() => setActiveTab('attendance')} className="px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg bg-blue-50 text-blue-700 border border-blue-100"><Icon name="fingerprint" size={20} /> رفع بيانات البصمة</button>
