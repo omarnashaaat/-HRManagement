@@ -317,29 +317,50 @@
                     const bstr = evt.target.result;
                     const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
                     const ws = wb.Sheets[wb.SheetNames[0]];
-                    const rows = XLSX.utils.sheet_to_json(ws);
+                    
+                    const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                    if (rawRows.length < 2) return alert("الملف فارغ");
 
-                    if (rows.length === 0) return alert("الملف فارغ");
+                    const normalizeText = (t) => t ? t.toString().trim().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').toLowerCase() : "";
 
+                    let headerIdx = 0;
+                    for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+                        const rowStr = rawRows[i].map(c => normalizeText(c)).join(' ');
+                        if (rowStr.includes('كود') || rowStr.includes('تاريخ') || rowStr.includes('بصمه') || rowStr.includes('code') || rowStr.includes('date') || rowStr.includes('اسم') || rowStr.includes('حضور')) {
+                            headerIdx = i;
+                            break;
+                        }
+                    }
+
+                    const headers = rawRows[headerIdx].map(h => normalizeText(h));
                     const parsedRecords = [];
-                    rows.forEach(row => {
-                        // Enhanced column mapping for Arabic and various formats
-                        const code = row['كود البصمة'] || row['كود'] || row['Code'] || row['ID'] || row['رقم الموظف'] || row['م'];
-                        const dateVal = row['التاريخ'] || row['Date'] || row['تاريخ'];
-                        const entry = row['وقت الدخول'] || row['حضور'] || row['Entry'] || row['دخول'] || row['بصمة حضور'];
-                        const exit = row['وقت الخروج'] || row['انصراف'] || row['Exit'] || row['خروج'] || row['بصمة انصراف'];
-                        const lateVal = row['تأخير'] || row['Late'];
-                        const earlyVal = row['مبكر'] || row['Early'];
-                        const dedVal = row['خصم'] || row['Deduction'];
-                        const otVal = row['إضافي'] || row['OT'] || row['Extra'];
-                        const totalVal = row['إجمالي'] || row['Total'];
 
-                        if (!code || !dateVal) return;
-                        if (code.toString().includes('كود') || code.toString().includes('بصمه') || code.toString().includes('رقم')) return;
-                        if (dateVal.toString().includes('تاريخ')) return;
+                    for (let i = headerIdx + 1; i < rawRows.length; i++) {
+                        const rowArray = rawRows[i];
+                        if (!rowArray || rowArray.length === 0) continue;
+                        
+                        const row = {};
+                        headers.forEach((h, idx) => {
+                            if (h) row[h] = rowArray[idx];
+                        });
 
-                        const emp = employees.find(e => e.code.toString() === code.toString());
-                        if (!emp) return;
+                        const code = row['كود البصمه'] || row['كود'] || row['code'] || row['id'] || row['رقم الموظف'] || row['م'] || row['رقم'] || row['اسم الموظف'] || row['الاسم'] || row['اسم'] || row['name'];
+                        const dateVal = row['التاريخ'] || row['date'] || row['تاريخ'] || row['يوم'];
+                        const entry = row['وقت الدخول'] || row['حضور'] || row['entry'] || row['دخول'] || row['بصمه حضور'] || row['الحضور'] || row['in'] || row['time in'];
+                        const exit = row['وقت الخروج'] || row['انصراف'] || row['exit'] || row['خروج'] || row['بصمه انصراف'] || row['الانصراف'] || row['out'] || row['time out'];
+                        const lateVal = row['تاخير'] || row['late'];
+                        const earlyVal = row['مبكر'] || row['early'];
+                        const dedVal = row['خصم'] || row['deduction'];
+                        const otVal = row['اضافي'] || row['ot'] || row['extra'];
+                        const totalVal = row['اجمالي'] || row['total'];
+
+                        if (!code || !dateVal) continue;
+
+                        let emp = employees.find(e => e.code.toString().trim() === code.toString().trim());
+                        if (!emp) {
+                            emp = employees.find(e => normalizeText(e.name) === normalizeText(code));
+                        }
+                        if (!emp) continue;
 
                         let formattedDate;
                         try {
@@ -353,13 +374,39 @@
                                 if (!isNaN(d.getTime())) {
                                     formattedDate = d.toISOString().split('T')[0];
                                 } else {
-                                    return;
+                                    continue;
                                 }
                             }
-                        } catch (err) { return; }
+                        } catch (err) { continue; }
 
-                        const arrivalTime = entry ? (typeof entry === 'string' ? entry : new Date(entry).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })) : '';
-                        const departureTime = exit ? (typeof exit === 'string' ? exit : new Date(exit).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })) : '';
+                        const formatTime = (t) => {
+                            if (t === undefined || t === null || t === '') return '';
+                            if (t instanceof Date) return t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                            if (typeof t === 'number') {
+                                const fraction = t % 1;
+                                const totalSeconds = Math.round(fraction * 24 * 60 * 60);
+                                const hours = Math.floor(totalSeconds / 3600);
+                                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                            }
+                            if (typeof t === 'string') {
+                                const timeMatch = t.match(/(\d{1,2}:\d{2}(?:\s?[APap][Mm])?)/);
+                                if (timeMatch) {
+                                    let timeStr = timeMatch[1];
+                                    const isPM = timeStr.toLowerCase().includes('pm') || timeStr.toLowerCase().includes('م');
+                                    const isAM = timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('ص');
+                                    let [h, m] = timeStr.replace(/[^\d:]/g, '').split(':').map(Number);
+                                    if (isPM && h < 12) h += 12;
+                                    if (isAM && h === 12) h = 0;
+                                    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                                }
+                                return t;
+                            }
+                            return '';
+                        };
+
+                        const arrivalTime = formatTime(entry);
+                        const departureTime = formatTime(exit);
 
                         parsedRecords.push({
                             empId: emp.id,
@@ -375,9 +422,11 @@
                             totalHours: totalVal?.toString() || undefined,
                             notes: row['ملاحظات'] || ''
                         });
-                    });
+                    }
 
-                    if (parsedRecords.length === 0) return alert("لم يتم العثور على بيانات صالحة للموظفين المسجلين");
+                    if (parsedRecords.length === 0) {
+                        return alert("لم يتم العثور على بيانات صالحة للموظفين المسجلين.\n\nيرجى التأكد من:\n1. وجود عمود 'كود' وعمود 'التاريخ'.\n2. تطابق 'أكواد الموظفين' في الشيت مع الأكواد المسجلة في النظام.");
+                    }
                     setPreviewData(parsedRecords);
                 };
                 reader.readAsBinaryString(file);
