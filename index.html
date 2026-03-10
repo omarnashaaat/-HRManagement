@@ -34,11 +34,8 @@
         }
         @media print {
             @page { 
-                size: A4 landscape; 
-                margin: 5mm; 
-            }
-            .print-portrait {
-                size: A4 portrait !important;
+                size: A4; 
+                margin: 10mm; 
             }
             html, body { 
                 width: 100%; 
@@ -47,71 +44,85 @@
                 color: black !important; 
                 margin: 0;
                 padding: 0;
+                font-size: 11pt;
             }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             
             main { padding: 0 !important; margin: 0 !important; }
-            .payroll-table { 
-                width: 100% !important; 
-                border: 1px solid #333 !important;
-                font-size: 8pt !important;
-                border-collapse: collapse !important;
-            }
-            .payroll-table th, .payroll-table td { 
-                border: 1px solid #333 !important; 
-                padding: 4px !important;
-                line-height: 1.2 !important;
-            }
-            .payroll-table th {
-                background-color: #f8fafc !important;
-                color: black !important;
-                -webkit-print-color-adjust: exact;
-            }
-            input { 
-                border: none !important; 
-                background: transparent !important; 
-                text-align: center !important; 
-                width: 100% !important; 
-                color: black !important;
-                font-size: inherit !important;
-            }
-            input[type=number] { -moz-appearance: textfield; }
-            input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
             
             .shadow-2xl, .shadow-xl, .shadow-sm, .shadow-lg { box-shadow: none !important; }
-            .rounded-[30px], .rounded-[40px], .rounded-[50px] { border-radius: 0 !important; }
+            .rounded-[30px], .rounded-[40px], .rounded-[50px], .rounded-3xl, .rounded-2xl { border-radius: 0 !important; }
             
+            /* Payslip Specific */
+            .payslip-box {
+                border: 2px solid #000 !important;
+                padding: 30px !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: none !important;
+                box-shadow: none !important;
+                page-break-inside: avoid !important;
+                background: white !important;
+            }
+            .payslip-box * {
+                color: #000 !important;
+            }
+            .net-salary-box-print {
+                border: 3px solid #000 !important;
+                background-color: #f8fafc !important;
+                -webkit-print-color-adjust: exact;
+                padding: 20px !important;
+                margin-top: 20px !important;
+            }
+            .net-salary-box-print * {
+                color: #000 !important;
+            }
+
+            /* Payroll Table Specific (Landscape) */
+            .landscape-page {
+                width: 100% !important;
+            }
+            .payroll-table {
+                width: 100% !important;
+                font-size: 6.5pt !important;
+                border-collapse: collapse !important;
+                table-layout: fixed !important;
+            }
+            .payroll-table th, .payroll-table td {
+                padding: 2px !important;
+                border: 1px solid #000 !important;
+            }
+            .payroll-table thead tr {
+                background-color: #f1f5f9 !important;
+                -webkit-print-color-adjust: exact;
+            }
+
+            /* Attendance Report Specific */
+            .report-container {
+                page-break-after: always !important;
+                width: 100% !important;
+            }
+            .report-container table {
+                font-size: 8pt !important;
+                width: 100% !important;
+            }
+            .report-container th, .report-container td {
+                padding: 2px !important;
+                border: 1px solid #000 !important;
+            }
+
             .print-signatures {
                 display: grid !important;
                 grid-template-columns: repeat(3, 1fr) !important;
-                gap: 20px !important;
-                margin-top: 30px !important;
+                gap: 40px !important;
+                margin-top: 50px !important;
                 text-align: center !important;
             }
-            .payslip-box {
-                border: 2px solid #000 !important;
-                padding: 20px !important;
-                margin: 10px !important;
-                page-break-after: always;
-            }
-            .report-container {
-                page-break-after: always !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-            }
-            @page {
-                size: A4;
-                margin: 5mm;
-            }
-            .report-container table {
-                font-size: 6pt !important;
-            }
-            .report-container th, .report-container td {
-                padding: 0.5px !important;
-                line-height: 1 !important;
+            .print-signatures > div {
+                border-top: 2px solid #000 !important;
+                padding-top: 10px !important;
+                font-weight: 900 !important;
             }
         }
         .print-only { display: none; }
@@ -779,10 +790,10 @@
                                         <p className="text-[9px] font-black text-indigo-600 uppercase">إجمالي الإضافي</p>
                                         <p className="text-xl font-black text-indigo-700">{totalOTStr}</p>
                                     </div>
-                                    <div className="hidden print:block text-xs font-bold space-y-1">
-                                        <p>أيام الحضور: {presentDays}</p>
-                                        <p>إجمالي الخصم: {totalDeduction} ساعة</p>
-                                        <p>إجمالي الإضافي: {totalOTStr}</p>
+                                    <div className="hidden print:block text-lg font-black space-y-2 border-t-2 border-slate-900 pt-4">
+                                        <p className="flex justify-between gap-8"><span>أيام الحضور:</span> <span>{presentDays}</span></p>
+                                        <p className="flex justify-between gap-8"><span>إجمالي الخصم:</span> <span className="text-rose-700">{totalDeduction} ساعة</span></p>
+                                        <p className="flex justify-between gap-8"><span>إجمالي الإضافي:</span> <span className="text-emerald-700">{totalOTStr}</span></p>
                                     </div>
                                 </div>
 
@@ -921,74 +932,156 @@
 
             return (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden animate-fade-in border border-slate-200">
+                    <div className="bg-white w-full max-w-3xl rounded-[40px] shadow-2xl overflow-hidden animate-fade-in border border-slate-200">
                         <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
-                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><Icon name="file-text" size={24} className="text-indigo-600"/> معاينة كشف الراتب</h3>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                                    <Icon name="file-text" size={24}/>
+                                </div>
+                                <h3 className="text-xl font-black text-slate-800">معاينة كشف الراتب</h3>
+                            </div>
                             <div className="flex gap-2">
-                                <button onClick={handlePrintSlip} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-black text-sm flex items-center gap-2 shadow-lg"><Icon name="printer" size={18}/> طباعة / PDF</button>
-                                <button onClick={onClose} className="p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-xl transition-all"><Icon name="x" size={24}/></button>
+                                <button onClick={handlePrintSlip} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-sm flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all">
+                                    <Icon name="printer" size={18}/> طباعة / PDF
+                                </button>
+                                <button onClick={onClose} className="p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-xl transition-all">
+                                    <Icon name="x" size={24}/>
+                                </button>
                             </div>
                         </div>
 
-                        <div className="p-10 payslip-box">
-                            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-6">
+                        <div className="p-12 payslip-box print:p-8">
+                            {/* Header Section */}
+                            <div className="flex justify-between items-start border-b-4 border-slate-900 pb-8 mb-8 print:pb-6 print:mb-6">
                                 <div className="text-right">
-                                    <h1 className="text-2xl font-black text-slate-900">إشعار صرف راتب</h1>
-                                    <p className="text-slate-500 font-bold mt-1 uppercase tracking-widest text-xs">Payroll Advice Notice</p>
+                                    <h1 className="text-4xl font-black text-slate-900 tracking-tight print:text-5xl">إشعار صرف راتب</h1>
+                                    <p className="text-slate-500 font-bold mt-1 uppercase tracking-[0.2em] text-[12px] print:text-black">Payroll Advice Notice</p>
                                 </div>
-                                <div className="text-left font-bold text-sm">
-                                    <p>الفترة: {month}</p>
-                                    <p>التاريخ: {new Date().toLocaleDateString('ar-EG')}</p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-8 mb-8 text-sm">
-                                <div className="space-y-2">
-                                    <p className="flex justify-between border-b pb-1 font-bold"><span>اسم الموظف:</span> <span>{emp.name}</span></p>
-                                    <p className="flex justify-between border-b pb-1"><span>الكود الوظيفي:</span> <span className="font-mono">{emp.code}</span></p>
-                                    <p className="flex justify-between border-b pb-1"><span>الوظيفة:</span> <span>{emp.jobTitle}</span></p>
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="flex justify-between border-b pb-1"><span>الإدارة:</span> <span>{emp.department}</span></p>
-                                    <p className="flex justify-between border-b pb-1"><span>تاريخ التعيين:</span> <span className="font-mono">{emp.joinDate}</span></p>
+                                <div className="text-left font-bold text-lg space-y-2 print:text-black">
+                                    <p>الفترة: <span className="font-mono">{month}</span></p>
+                                    <p className="text-slate-500 print:text-black">التاريخ: <span className="font-mono">{new Date().toLocaleDateString('ar-EG')}</span></p>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-10">
+                            {/* Employee Info Grid */}
+                            <div className="grid grid-cols-2 gap-x-16 gap-y-6 mb-12 text-lg print:mb-10 print:text-base">
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
+                                        <span className="text-slate-500 font-bold print:text-black">اسم الموظف:</span>
+                                        <span className="text-slate-900 font-black print:text-xl">{emp.name}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
+                                        <span className="text-slate-500 font-bold print:text-black">الكود الوظيفي:</span>
+                                        <span className="text-slate-900 font-mono font-bold print:text-lg">{emp.code}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
+                                        <span className="text-slate-500 font-bold print:text-black">الوظيفة:</span>
+                                        <span className="text-slate-900 font-bold print:text-lg">{emp.jobTitle}</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
+                                        <span className="text-slate-500 font-bold print:text-black">الإدارة:</span>
+                                        <span className="text-slate-900 font-bold print:text-lg">{emp.department}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
+                                        <span className="text-slate-500 font-bold print:text-black">تاريخ التعيين:</span>
+                                        <span className="text-slate-900 font-mono font-bold print:text-lg">{emp.joinDate}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Financial Details */}
+                            <div className="grid grid-cols-2 gap-12 print:gap-8">
+                                {/* Additions */}
                                 <div>
-                                    <h4 className="bg-slate-100 p-2 font-black text-center text-xs mb-3 border border-slate-200">المستحقات (+)</h4>
-                                    <div className="space-y-2 text-xs">
-                                        <p className="flex justify-between border-b pb-1"><span>الراتب الأساسي:</span> <span className="font-bold">{record.grossSalary?.toLocaleString()}</span></p>
+                                    <div className="bg-slate-50 p-2.5 font-black text-center text-xs mb-4 border border-slate-200 rounded-lg uppercase tracking-widest print:text-sm print:bg-slate-100">المستحقات (+)</div>
+                                    <div className="space-y-3 text-xs">
+                                        <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                            <span className="text-slate-600">الراتب الأساسي:</span>
+                                            <span className="font-bold text-slate-900">{record.grossSalary?.toLocaleString()}</span>
+                                        </div>
                                         {record.settlements?.filter(s => s.type === 'addition').map(s => (
-                                            <p key={s.id} className="flex justify-between border-b pb-1"><span>{s.title || 'تسوية إضافية'}:</span> <span className="font-bold text-emerald-600">+{parseFloat(s.amount).toLocaleString()}</span></p>
+                                            <div key={s.id} className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                                <span className="text-slate-600">{s.title || 'تسوية إضافية'}:</span>
+                                                <span className="font-bold text-emerald-600">+{parseFloat(s.amount).toLocaleString()}</span>
+                                            </div>
                                         ))}
-                                        <p className="flex justify-between pt-2 font-black text-sm text-indigo-700"><span>إجمالي المستحقات:</span> <span>{additions.toLocaleString()}</span></p>
+                                        <div className="flex justify-between items-center pt-4">
+                                            <span className="font-black text-indigo-700 text-sm">إجمالي المستحقات:</span>
+                                            <span className="font-black text-indigo-700 text-lg">{additions.toLocaleString()}</span>
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Deductions */}
                                 <div>
-                                    <h4 className="bg-slate-100 p-2 font-black text-center text-xs mb-3 border border-slate-200">الاستقطاعات (-)</h4>
-                                    <div className="space-y-2 text-xs">
-                                        {record.leaveVal > 0 && <p className="flex justify-between border-b pb-1"><span>أجازات ({record.leaveCount} يوم):</span> <span className="text-rose-600">-{Math.round(record.leaveVal).toLocaleString()}</span></p>}
-                                        {record.penaltyVal > 0 && <p className="flex justify-between border-b pb-1"><span>جزاءات ({record.penaltyCount} يوم):</span> <span className="text-rose-600">-{record.penaltyVal.toLocaleString()}</span></p>}
-                                        {record.lateVal > 0 && <p className="flex justify-between border-b pb-1"><span>تأخيرات ({record.lateCount} ساعة):</span> <span className="text-rose-600">-{Math.round(record.lateVal).toLocaleString()}</span></p>}
-                                        {record.advanceInstallment > 0 && <p className="flex justify-between border-b pb-1"><span>قسط سلفة:</span> <span className="text-rose-600">-{record.advanceInstallment.toLocaleString()}</span></p>}
+                                    <div className="bg-slate-50 p-2.5 font-black text-center text-xs mb-4 border border-slate-200 rounded-lg uppercase tracking-widest print:text-sm print:bg-slate-100">الاستقطاعات (-)</div>
+                                    <div className="space-y-3 text-xs">
+                                        {record.leaveVal > 0 && (
+                                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                                <span className="text-slate-600">أجازات ({record.leaveCount} يوم):</span>
+                                                <span className="text-rose-600 font-bold">-{Math.round(record.leaveVal).toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                        {record.penaltyVal > 0 && (
+                                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                                <span className="text-slate-600">جزاءات ({record.penaltyCount} يوم):</span>
+                                                <span className="text-rose-600 font-bold">-{record.penaltyVal.toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                        {record.lateVal > 0 && (
+                                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                                <span className="text-slate-600">تأخيرات ({record.lateCount} ساعة):</span>
+                                                <span className="text-rose-600 font-bold">-{Math.round(record.lateVal).toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                        {record.advanceInstallment > 0 && (
+                                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                                <span className="text-slate-600">قسط سلفة:</span>
+                                                <span className="text-rose-600 font-bold">-{record.advanceInstallment.toLocaleString()}</span>
+                                            </div>
+                                        )}
                                         {record.settlements?.filter(s => s.type === 'deduction').map(s => (
-                                            <p key={s.id} className="flex justify-between border-b pb-1"><span>{s.title || 'تسوية خصم'}:</span> <span className="text-rose-600">-{parseFloat(s.amount).toLocaleString()}</span></p>
+                                            <div key={s.id} className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                                <span className="text-slate-600">{s.title || 'تسوية خصم'}:</span>
+                                                <span className="text-rose-600 font-bold">-{parseFloat(s.amount).toLocaleString()}</span>
+                                            </div>
                                         ))}
-                                        <p className="flex justify-between pt-2 font-black text-sm text-rose-700"><span>إجمالي الاستقطاع:</span> <span>{deductions.toLocaleString()}</span></p>
+                                        <div className="flex justify-between items-center pt-4">
+                                            <span className="font-black text-rose-700 text-sm">إجمالي الاستقطاع:</span>
+                                            <span className="font-black text-rose-700 text-lg">{deductions.toLocaleString()}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="mt-10 bg-slate-900 text-white p-6 flex justify-between items-center rounded-2xl">
-                                <span className="text-lg font-black uppercase tracking-widest">صافي الراتب المستحق</span>
-                                <span className="text-3xl font-black">{Math.round(net).toLocaleString()} ج.م</span>
+                            {/* Net Salary Box */}
+                            <div className="mt-12 bg-slate-900 text-white p-10 flex justify-between items-center rounded-3xl shadow-2xl print:mt-10 print:p-8 print:rounded-none net-salary-box-print">
+                                <div className="space-y-2">
+                                    <span className="text-2xl font-black uppercase tracking-[0.15em] block print:text-2xl">صافي الراتب المستحق</span>
+                                    <span className="text-slate-400 text-xs font-bold print:text-black">Net Salary Payable</span>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-6xl font-black print:text-7xl">{Math.round(net).toLocaleString()}</span>
+                                    <span className="text-2xl font-bold mr-3">ج.م</span>
+                                </div>
                             </div>
 
-                            <div className="mt-12 flex justify-between text-[10px] font-bold text-slate-400 border-t pt-4">
-                                <span>توقيع الموظف: ................................</span>
-                                <span>توقيع المحاسب: ................................</span>
-                                <span>توقيع الإدارة: ................................</span>
+                            {/* Signatures */}
+                            <div className="mt-16 flex justify-between text-[11px] font-bold text-slate-400 border-t border-slate-100 pt-6 print:mt-10 print:text-[10px] print:text-slate-900">
+                                <div className="text-center space-y-4">
+                                    <p>توقيع الموظف</p>
+                                    <div className="w-32 border-b border-slate-200 mx-auto"></div>
+                                </div>
+                                <div className="text-center space-y-4">
+                                    <p>توقيع المحاسب</p>
+                                    <div className="w-32 border-b border-slate-200 mx-auto"></div>
+                                </div>
+                                <div className="text-center space-y-4">
+                                    <p>توقيع الإدارة</p>
+                                    <div className="w-32 border-b border-slate-200 mx-auto"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1156,27 +1249,27 @@
                         </div>
                     </div>
 
-                    <div className="rounded-[30px] shadow-2xl overflow-hidden border bg-white border-slate-200">
-                        <div className="overflow-x-auto">
+                    <div className="rounded-[30px] shadow-2xl overflow-hidden print:overflow-visible border bg-white border-slate-200 landscape-page">
+                        <div className="overflow-x-auto print:overflow-visible payroll-print-wrapper">
                             <table className="w-full text-[9px] text-center payroll-table border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 text-slate-700 font-black">
-                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100">م</th>
-                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 min-w-[30px]">الكود</th>
-                                        <th rowSpan="2" className="px-2 py-2 bg-slate-100 min-w-[120px] text-right">اسم الموظف</th>
-                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 min-w-[60px]">تاريخ التعيين</th>
-                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 min-w-[80px]">الوظيفة</th>
-                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 min-w-[60px]">الراتب الإجمالي</th>
-                                        <th colSpan="2" className="bg-yellow-400 text-white">الأجازة بخصم</th>
-                                        <th colSpan="2" className="bg-rose-600 text-white">الجزاءات</th>
-                                        <th colSpan="2" className="bg-orange-500 text-white">الغياب</th>
-                                        <th colSpan="2" className="bg-sky-500 text-white">التأخير</th>
-                                        <th colSpan="2" className="bg-emerald-500 text-white">السُلف</th>
-                                        <th colSpan="2" className="bg-indigo-500 text-white">تسويات</th>
-                                        <th rowSpan="2" className="px-1 py-2 bg-rose-50 text-rose-700 min-w-[60px]">إجمالي استقطاع</th>
-                                        <th rowSpan="2" className="px-1 py-2 bg-emerald-50 text-emerald-700 font-black text-[10px] min-w-[70px]">صافي الراتب</th>
-                                        <th rowSpan="2" className="px-1 py-2 bg-slate-50 min-w-[80px]">ملاحظات</th>
-                                        <th rowSpan="2" className="px-1 py-2 bg-slate-50 no-print min-w-[40px]">إجراء</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[2%]">م</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[3%]">الكود</th>
+                                        <th rowSpan="2" className="px-2 py-2 bg-slate-100 w-[15%] text-right">اسم الموظف</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[7%]">تاريخ التعيين</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[8%]">الوظيفة</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[7%]">الراتب الإجمالي</th>
+                                        <th colSpan="2" className="bg-yellow-400 text-white w-[6%]">الأجازة بخصم</th>
+                                        <th colSpan="2" className="bg-rose-600 text-white w-[6%]">الجزاءات</th>
+                                        <th colSpan="2" className="bg-orange-500 text-white w-[6%]">الغياب</th>
+                                        <th colSpan="2" className="bg-sky-500 text-white w-[6%]">التأخير</th>
+                                        <th colSpan="2" className="bg-emerald-500 text-white w-[6%]">السُلف</th>
+                                        <th colSpan="2" className="bg-indigo-500 text-white w-[6%]">تسويات</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-rose-50 text-rose-700 w-[7%]">إجمالي استقطاع</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-emerald-50 text-emerald-700 font-black text-[10px] w-[8%]">صافي الراتب</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-50 w-[7%]">ملاحظات</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-50 no-print w-[3%]">إجراء</th>
                                     </tr>
                                     <tr className="bg-slate-50 text-slate-600 font-bold">
                                         <th className="bg-yellow-100">عدد</th><th className="bg-yellow-100">قيمة</th>
@@ -1249,8 +1342,8 @@
                                                     </div>
                                                 </td>
                                                 
-                                                <td className="px-1 py-2 bg-rose-50/50 font-black text-rose-700">{Math.round(totalDeductions)}</td>
-                                                <td className="px-1 py-2 bg-emerald-50/50 font-black text-emerald-700 text-[10px]">{Math.round(netSalary)}</td>
+                                                <td className="px-1 py-2 bg-rose-50/50 font-black text-rose-700 print:text-[8px]">{Math.round(totalDeductions)}</td>
+                                                <td className="px-1 py-2 bg-emerald-50/50 font-black text-emerald-700 text-[10px] print:text-[14px]">{Math.round(netSalary)}</td>
                                                 
                                                 <td className="px-1 py-1">
                                                     <textarea 
@@ -1279,16 +1372,10 @@
                         </div>
                     </div>
 
-                    <div className="print-only mt-10 print-signatures font-black text-sm">
-                        <div className="flex flex-col items-center">
-                            <div className="border-t-2 border-slate-900 w-full pt-3">مدير حسابات</div>
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <div className="border-t-2 border-slate-900 w-full pt-3">مدير الموارد البشرية</div>
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <div className="border-t-2 border-slate-900 w-full pt-3">المدير التنفيذى</div>
-                        </div>
+                    <div className="print-only print-signatures">
+                        <div>مدير حسابات</div>
+                        <div>مدير الموارد البشرية</div>
+                        <div>المدير التنفيذى</div>
                     </div>
                 </div>
             );
