@@ -215,6 +215,40 @@
             return lateDeduction + earlyDeduction;
         };
 
+        const calculateDetailedAttendance = (arrival, departure, empShiftId = '1') => {
+            if (!arrival || !departure) return { total: '0:00', late: '0.00', early: '0.00', ot: '0:00' };
+            
+            const shift = SHIFTS[empShiftId] || SHIFTS['1'];
+            const [sH, sM] = shift.start.split(':').map(Number);
+            const [eH, eM] = shift.end.split(':').map(Number);
+            const shiftStartMin = sH * 60 + sM;
+            const shiftEndMin = eH * 60 + eM;
+
+            const [aH, aM] = arrival.split(':').map(Number);
+            const [dH, dM] = departure.split(':').map(Number);
+            const arrivalMin = aH * 60 + aM;
+            const departureMin = dH * 60 + dM;
+
+            const totalMin = Math.max(0, departureMin - arrivalMin);
+            const totalHours = Math.floor(totalMin / 60);
+            const totalMins = totalMin % 60;
+            const totalStr = `${totalHours}:${totalMins.toString().padStart(2, '0')}`;
+
+            let late = 0;
+            if (arrivalMin > shiftStartMin) late = (arrivalMin - shiftStartMin) / 60;
+
+            let early = 0;
+            if (departureMin < shiftEndMin) early = (shiftEndMin - departureMin) / 60;
+
+            let otMin = 0;
+            if (departureMin > shiftEndMin) otMin = departureMin - shiftEndMin;
+            const otHours = Math.floor(otMin / 60);
+            const otMins = otMin % 60;
+            const otStr = `${otHours}:${otMins.toString().padStart(2, '0')}`;
+
+            return { total: totalStr, late: late.toFixed(2), early: early.toFixed(2), ot: otStr };
+        };
+
         const Attendance = ({ employees, attendanceLog, setAttendanceLog }) => {
             const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
             const [previewData, setPreviewData] = useState(null);
@@ -531,24 +565,8 @@
                         const record = (attendanceLog[dateStr] && attendanceLog[dateStr][emp.id]) || null;
                         
                         // Calculate Late/Early/Total for the report
-                        let late = 0;
-                        let early = 0;
                         const shift = SHIFTS[emp.shiftId] || SHIFTS['1'];
-                        const [sH, sM] = shift.start.split(':').map(Number);
-                        const [eH, eM] = shift.end.split(':').map(Number);
-                        const shiftStart = sH + sM/60;
-                        const shiftEnd = eH + eM/60;
-
-                        if (record && record.arrivalTime) {
-                            const [h, m] = record.arrivalTime.split(':').map(Number);
-                            const arrival = h + m/60;
-                            if (arrival > shiftStart) late = arrival - shiftStart;
-                        }
-                        if (record && record.departureTime) {
-                            const [h, m] = record.departureTime.split(':').map(Number);
-                            const departure = h + m/60;
-                            if (departure < shiftEnd) early = shiftEnd - departure;
-                        }
+                        const details = calculateDetailedAttendance(record?.arrivalTime, record?.departureTime, emp.shiftId);
 
                         return { 
                             no: idx + 1,
@@ -556,11 +574,11 @@
                             day: getDayName(dateObj),
                             in: record?.arrivalTime || '',
                             out: record?.departureTime || '',
-                            total: record?.totalHours !== undefined ? record.totalHours : (record ? '8:00' : ''),
-                            late: record?.lateHours !== undefined ? record.lateHours : late.toFixed(2),
-                            early: record?.earlyHours !== undefined ? record.earlyHours : early.toFixed(2),
-                            ded: record?.deduction !== undefined ? record.deduction : 0,
-                            ot: record?.overtimeHours || '0:00',
+                            total: record?.totalHours !== undefined ? record.totalHours : details.total,
+                            late: record?.lateHours !== undefined ? record.lateHours : details.late,
+                            early: record?.earlyHours !== undefined ? record.earlyHours : details.early,
+                            ded: record?.deduction !== undefined ? record.deduction : (record ? calculateDeduction(record.arrivalTime, record.departureTime, emp.shiftId) : 0),
+                            ot: record?.overtimeHours !== undefined ? record.overtimeHours : details.ot,
                             notes: record?.notes || '',
                             isWeekend: dateObj.getDay() === 5 || dateObj.getDay() === 6
                         };
@@ -568,8 +586,14 @@
 
                     const totalDeduction = records.reduce((acc, curr) => acc + Number(curr.ded), 0);
                     const presentDays = records.filter(r => r.in).length;
+                    const totalOTMin = records.reduce((acc, curr) => {
+                        if (!curr.ot || curr.ot === '0:00') return acc;
+                        const [h, m] = curr.ot.split(':').map(Number);
+                        return acc + (h * 60 + m);
+                    }, 0);
+                    const totalOTStr = `${Math.floor(totalOTMin / 60)}:${(totalOTMin % 60).toString().padStart(2, '0')}`;
 
-                    return { emp, records, totalDeduction, presentDays };
+                    return { emp, records, totalDeduction, presentDays, totalOTStr };
                 });
             }, [employees, attendanceLog, monthData, selectedEmpId]);
 
@@ -585,12 +609,18 @@
                 
                 newLog[date][empId] = { ...newLog[date][empId], [field]: value };
                 
-                // Recalculate deduction ONLY if times changed AND it's not a manual deduction edit
-                if ((field === 'arrivalTime' || field === 'departureTime') && field !== 'deduction') {
+                // Recalculate everything if times changed
+                if (field === 'arrivalTime' || field === 'departureTime') {
                     const emp = employees.find(e => e.id === empId);
                     const arrival = newLog[date][empId].arrivalTime;
                     const departure = newLog[date][empId].departureTime;
+                    
+                    const details = calculateDetailedAttendance(arrival, departure, emp?.shiftId);
                     newLog[date][empId].deduction = calculateDeduction(arrival, departure, emp?.shiftId);
+                    newLog[date][empId].totalHours = details.total;
+                    newLog[date][empId].lateHours = details.late;
+                    newLog[date][empId].earlyHours = details.early;
+                    newLog[date][empId].overtimeHours = details.ot;
                 }
                 
                 setAttendanceLog(newLog);
@@ -618,20 +648,20 @@
                     </div>
 
                     <div className="space-y-12 print:space-y-0 max-w-[1200px] mx-auto p-4 md:p-8 print:p-0">
-                        {reportRecords.map(({ emp, records, totalDeduction, presentDays }) => (
+                        {reportRecords.map(({ emp, records, totalDeduction, presentDays, totalOTStr }) => (
                             <div key={emp.id} className="report-container bg-white text-slate-900" style={{ pageBreakAfter: 'always' }}>
                                 {/* Report Header Matching Image */}
                                 <div className="text-center space-y-2 mb-8 print:mb-2 print:space-y-0">
-                                    <h1 className="text-xl font-bold uppercase tracking-widest">Monthly Attendance Report</h1>
+                                    <h1 className="text-xl print:text-base font-bold uppercase tracking-widest">Monthly Attendance Report</h1>
                                     <p className="text-sm font-bold">{new Date().toLocaleDateString('en-GB')}</p>
                                 </div>
 
                                 <div className="flex justify-between items-end mb-6 px-2 print:mb-2">
-                                    <div className="space-y-1 text-sm font-bold">
+                                    <div className="space-y-1 text-sm print:text-[10px] font-bold">
                                         <p>Employee Name: <span className="border-b border-slate-300 px-4 inline-block min-w-[200px]">{emp.name}</span></p>
                                         <p>No.: <span className="border-b border-slate-300 px-4 inline-block min-w-[100px]">{emp.code}</span></p>
                                     </div>
-                                    <div className="text-sm font-bold">
+                                    <div className="text-sm print:text-[10px] font-bold">
                                         <p>Month: <span className="border-b border-slate-300 px-4 inline-block min-w-[150px]">{monthName}</span></p>
                                     </div>
                                 </div>
@@ -730,7 +760,7 @@
                                     </table>
                                 </div>
                                 
-                                <div className="mt-6 flex justify-between px-10">
+                                <div className="mt-6 print:mt-2 flex justify-between px-10 print:px-2">
                                     <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 no-print">
                                         <p className="text-[9px] font-black text-emerald-600 uppercase">أيام الحضور</p>
                                         <p className="text-xl font-black text-emerald-700">{presentDays}</p>
@@ -739,13 +769,18 @@
                                         <p className="text-[9px] font-black text-rose-600 uppercase">إجمالي الخصم</p>
                                         <p className="text-xl font-black text-rose-700">{totalDeduction} ساعة</p>
                                     </div>
+                                    <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 no-print">
+                                        <p className="text-[9px] font-black text-indigo-600 uppercase">إجمالي الإضافي</p>
+                                        <p className="text-xl font-black text-indigo-700">{totalOTStr}</p>
+                                    </div>
                                     <div className="hidden print:block text-xs font-bold space-y-1">
                                         <p>أيام الحضور: {presentDays}</p>
                                         <p>إجمالي الخصم: {totalDeduction} ساعة</p>
+                                        <p>إجمالي الإضافي: {totalOTStr}</p>
                                     </div>
                                 </div>
 
-                                <div className="print-signatures mt-12 hidden print:grid grid-cols-3 gap-8 text-center font-bold text-xs">
+                                <div className="print-signatures mt-12 print:mt-4 hidden print:grid grid-cols-3 gap-8 text-center font-bold text-xs">
                                     <div className="space-y-6">
                                         <p>إعداد / شؤون العاملين</p>
                                         <div className="border-b border-black w-24 mx-auto"></div>
