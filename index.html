@@ -79,6 +79,29 @@
                 color: #000 !important;
             }
 
+            /* Warning Modal Specific */
+            .warning-box {
+                border: 2px solid #000 !important;
+                padding: 40px !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: none !important;
+                height: 275mm !important;
+                max-height: 275mm !important;
+                box-sizing: border-box !important;
+                box-shadow: none !important;
+                background: white !important;
+                display: flex !important;
+                flex-direction: column !important;
+                overflow: hidden !important;
+                page-break-inside: avoid !important;
+                page-break-after: avoid !important;
+                page-break-before: avoid !important;
+            }
+            .warning-box * {
+                color: #000 !important;
+            }
+
             /* Payroll Table Specific (Landscape) */
             .landscape-page {
                 width: 100% !important;
@@ -933,58 +956,58 @@
             return (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-3xl rounded-[40px] shadow-2xl overflow-hidden animate-fade-in border border-slate-200">
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-center no-print">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                        <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl shrink-0">
                                     <Icon name="file-text" size={24}/>
                                 </div>
-                                <h3 className="text-xl font-black text-slate-800">معاينة كشف الراتب</h3>
+                                <h3 className="text-lg md:text-xl font-black text-slate-800">معاينة كشف الراتب</h3>
                             </div>
-                            <div className="flex gap-2">
-                                <button onClick={handlePrintSlip} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-sm flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all">
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <button onClick={handlePrintSlip} className="flex-1 sm:flex-none justify-center px-4 md:px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-sm flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all">
                                     <Icon name="printer" size={18}/> طباعة / PDF
                                 </button>
-                                <button onClick={onClose} className="p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-xl transition-all">
+                                <button onClick={onClose} className="p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-xl transition-all shrink-0">
                                     <Icon name="x" size={24}/>
                                 </button>
                             </div>
                         </div>
 
-                        <div className="p-12 payslip-box print:p-8">
+                        <div className="p-6 md:p-12 payslip-box print:p-8 overflow-y-auto max-h-[75vh] print:max-h-none print:overflow-visible">
                             {/* Header Section */}
-                            <div className="flex justify-between items-start border-b-4 border-slate-900 pb-8 mb-8 print:pb-6 print:mb-6">
-                                <div className="text-right">
-                                    <h1 className="text-4xl font-black text-slate-900 tracking-tight print:text-5xl">إشعار صرف راتب</h1>
-                                    <p className="text-slate-500 font-bold mt-1 uppercase tracking-[0.2em] text-[12px] print:text-black">Payroll Advice Notice</p>
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-4 border-slate-900 pb-6 md:pb-8 mb-6 md:mb-8 print:pb-6 print:mb-6 gap-4">
+                                <div className="text-right w-full md:w-auto">
+                                    <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight print:text-5xl">إشعار صرف راتب</h1>
+                                    <p className="text-slate-500 font-bold mt-1 uppercase tracking-[0.2em] text-[10px] md:text-[12px] print:text-black">Payroll Advice Notice</p>
                                 </div>
-                                <div className="text-left font-bold text-lg space-y-2 print:text-black">
-                                    <p>الفترة: <span className="font-mono">{month}</span></p>
-                                    <p className="text-slate-500 print:text-black">التاريخ: <span className="font-mono">{new Date().toLocaleDateString('ar-EG')}</span></p>
+                                <div className="text-right md:text-left font-bold text-base md:text-lg space-y-1 md:space-y-2 print:text-black w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 border-slate-100">
+                                    <p className="flex md:block justify-between"><span>الفترة:</span> <span className="font-mono">{month}</span></p>
+                                    <p className="flex md:block justify-between text-slate-500 print:text-black"><span>التاريخ:</span> <span className="font-mono">{new Date().toLocaleDateString('ar-EG')}</span></p>
                                 </div>
                             </div>
 
                             {/* Employee Info Grid */}
-                            <div className="grid grid-cols-2 gap-x-16 gap-y-6 mb-12 text-lg print:mb-10 print:text-base">
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 md:gap-y-6 mb-8 md:mb-12 text-base md:text-lg print:mb-10 print:text-base print:grid-cols-2">
+                                <div className="space-y-3 md:space-y-4">
+                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-2 md:pb-3">
                                         <span className="text-slate-500 font-bold print:text-black">اسم الموظف:</span>
                                         <span className="text-slate-900 font-black print:text-xl">{emp.name}</span>
                                     </div>
-                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
+                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-2 md:pb-3">
                                         <span className="text-slate-500 font-bold print:text-black">الكود الوظيفي:</span>
                                         <span className="text-slate-900 font-mono font-bold print:text-lg">{emp.code}</span>
                                     </div>
-                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
+                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-2 md:pb-3">
                                         <span className="text-slate-500 font-bold print:text-black">الوظيفة:</span>
                                         <span className="text-slate-900 font-bold print:text-lg">{emp.jobTitle}</span>
                                     </div>
                                 </div>
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
+                                <div className="space-y-3 md:space-y-4">
+                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-2 md:pb-3">
                                         <span className="text-slate-500 font-bold print:text-black">الإدارة:</span>
                                         <span className="text-slate-900 font-bold print:text-lg">{emp.department}</span>
                                     </div>
-                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
+                                    <div className="flex justify-between items-center border-b-2 border-slate-100 pb-2 md:pb-3">
                                         <span className="text-slate-500 font-bold print:text-black">تاريخ التعيين:</span>
                                         <span className="text-slate-900 font-mono font-bold print:text-lg">{emp.joinDate}</span>
                                     </div>
@@ -992,7 +1015,7 @@
                             </div>
 
                             {/* Financial Details */}
-                            <div className="grid grid-cols-2 gap-12 print:gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 print:gap-8 print:grid-cols-2">
                                 {/* Additions */}
                                 <div>
                                     <div className="bg-slate-50 p-2.5 font-black text-center text-xs mb-4 border border-slate-200 rounded-lg uppercase tracking-widest print:text-sm print:bg-slate-100">المستحقات (+)</div>
@@ -1057,19 +1080,19 @@
                             </div>
 
                             {/* Net Salary Box */}
-                            <div className="mt-12 bg-slate-900 text-white p-10 flex justify-between items-center rounded-3xl shadow-2xl print:mt-10 print:p-8 print:rounded-none net-salary-box-print">
-                                <div className="space-y-2">
-                                    <span className="text-2xl font-black uppercase tracking-[0.15em] block print:text-2xl">صافي الراتب المستحق</span>
-                                    <span className="text-slate-400 text-xs font-bold print:text-black">Net Salary Payable</span>
+                            <div className="mt-8 md:mt-12 bg-slate-900 text-white p-6 md:p-10 flex flex-col md:flex-row justify-between items-center gap-4 rounded-3xl shadow-2xl print:mt-10 print:p-8 print:rounded-none net-salary-box-print print:flex-row">
+                                <div className="space-y-1 md:space-y-2 text-center md:text-right">
+                                    <span className="text-xl md:text-2xl font-black uppercase tracking-[0.15em] block print:text-2xl">صافي الراتب المستحق</span>
+                                    <span className="text-slate-400 text-[10px] md:text-xs font-bold print:text-black">Net Salary Payable</span>
                                 </div>
-                                <div className="text-right">
-                                    <span className="text-6xl font-black print:text-7xl">{Math.round(net).toLocaleString()}</span>
-                                    <span className="text-2xl font-bold mr-3">ج.م</span>
+                                <div className="text-center md:text-right">
+                                    <span className="text-4xl md:text-6xl font-black print:text-7xl">{Math.round(net).toLocaleString()}</span>
+                                    <span className="text-xl md:text-2xl font-bold mr-2 md:mr-3">ج.م</span>
                                 </div>
                             </div>
 
                             {/* Signatures */}
-                            <div className="mt-16 flex justify-between text-[11px] font-bold text-slate-400 border-t border-slate-100 pt-6 print:mt-10 print:text-[10px] print:text-slate-900">
+                            <div className="mt-10 md:mt-16 flex flex-col md:flex-row justify-between gap-8 md:gap-0 text-[11px] font-bold text-slate-400 border-t border-slate-100 pt-6 md:pt-8 print:mt-10 print:text-[10px] print:text-slate-900 print:flex-row">
                                 <div className="text-center space-y-4">
                                     <p>توقيع الموظف</p>
                                     <div className="w-32 border-b border-slate-200 mx-auto"></div>
@@ -2198,9 +2221,105 @@
             );
         };
 
+        const WarningModal = ({ emp, onClose }) => {
+            const [note, setNote] = useState('');
+            const [type, setType] = useState('warning'); // warning, note
+
+            const handlePrint = () => {
+                window.print();
+            };
+
+            return (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 print:static print:bg-transparent print:p-0">
+                    <div className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden animate-fade-in border border-slate-200 flex flex-col max-h-[90vh] print:max-w-none print:border-none print:shadow-none print:rounded-none print:max-h-none print:block">
+                        <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print shrink-0">
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                <div className={`p-2 rounded-xl shrink-0 ${type === 'warning' ? 'bg-rose-50 text-rose-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                    <Icon name={type === 'warning' ? 'alert-triangle' : 'message-square'} size={24}/>
+                                </div>
+                                <h3 className="text-lg md:text-xl font-black text-slate-800">{type === 'warning' ? 'إصدار إنذار' : 'ملاحظة إدارية'}</h3>
+                            </div>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <button onClick={handlePrint} className="flex-1 sm:flex-none justify-center px-4 md:px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-sm flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all">
+                                    <Icon name="printer" size={18}/> طباعة
+                                </button>
+                                <button onClick={onClose} className="p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-xl transition-all shrink-0">
+                                    <Icon name="x" size={24}/>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 md:p-10 overflow-y-auto no-print">
+                            <div className="space-y-6">
+                                <div className="flex gap-4">
+                                    <button onClick={() => setType('warning')} className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all border-2 ${type === 'warning' ? 'border-rose-500 bg-rose-50 text-rose-700' : 'border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>إنذار تأخير / انصراف مبكر</button>
+                                    <button onClick={() => setType('note')} className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all border-2 ${type === 'note' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>ملاحظة عامة</button>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-black text-slate-700">نص الرسالة / الملاحظة</label>
+                                    <textarea 
+                                        value={note}
+                                        onChange={(e) => setNote(e.target.value)}
+                                        className="w-full h-32 p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 outline-none resize-none font-bold"
+                                        placeholder="اكتب الملاحظة هنا ليتم طباعتها وإبلاغ الموظف بها..."
+                                    ></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Print View */}
+                        <div className="hidden print:flex flex-col warning-box">
+                            <div className="text-center mb-10 border-b-4 border-slate-900 pb-6">
+                                <h1 className="text-4xl font-black text-slate-900 mb-2">{type === 'warning' ? 'إنذار إداري' : 'ملاحظة إدارية'}</h1>
+                                <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">{type === 'warning' ? 'Administrative Warning' : 'Administrative Note'}</p>
+                            </div>
+
+                            <div className="space-y-6 text-lg mb-12">
+                                <div className="flex justify-between border-b-2 border-slate-100 pb-4">
+                                    <span className="font-bold text-slate-500">التاريخ:</span>
+                                    <span className="font-black">{new Date().toLocaleDateString('ar-EG')}</span>
+                                </div>
+                                <div className="flex justify-between border-b-2 border-slate-100 pb-4">
+                                    <span className="font-bold text-slate-500">السيد / السيدة:</span>
+                                    <span className="font-black text-xl">{emp.name}</span>
+                                </div>
+                                <div className="flex justify-between border-b-2 border-slate-100 pb-4">
+                                    <span className="font-bold text-slate-500">الكود الوظيفي:</span>
+                                    <span className="font-mono font-black">{emp.code}</span>
+                                </div>
+                                <div className="flex justify-between border-b-2 border-slate-100 pb-4">
+                                    <span className="font-bold text-slate-500">الإدارة / القسم:</span>
+                                    <span className="font-black">{emp.department}</span>
+                                </div>
+                            </div>
+
+                            <div className="mb-8 flex-1">
+                                <h3 className="text-xl font-black text-slate-900 mb-4 underline underline-offset-8">الموضوع:</h3>
+                                <div className="p-6 bg-slate-50 border-2 border-slate-200 rounded-2xl min-h-[150px]">
+                                    <p className="text-xl leading-loose font-bold whitespace-pre-wrap">{note || 'لا توجد تفاصيل إضافية.'}</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-auto flex justify-between text-base font-bold text-slate-900 border-t-2 border-slate-900 pt-8">
+                                <div className="text-center space-y-6">
+                                    <p>توقيع الموظف بالاستلام</p>
+                                    <div className="w-48 border-b-2 border-slate-300 mx-auto"></div>
+                                </div>
+                                <div className="text-center space-y-6">
+                                    <p>مدير الموارد البشرية</p>
+                                    <div className="w-48 border-b-2 border-slate-300 mx-auto"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const EmployeeTable = ({ employees, onAddEmployee, onUpdateEmployee, onDeleteEmployee, onBulkAdd, setActiveTab }) => {
             const [showModal, setShowModal] = useState(false);
             const [editingEmp, setEditingEmp] = useState(null);
+            const [warningEmp, setWarningEmp] = useState(null);
             const [selectedDept, setSelectedDept] = useState('all');
             const fileInputRef = useRef(null);
             const [formData, setFormData] = useState({ name: '', code: '', joinDate: '', department: '', jobTitle: '', nationalId: '', phone: '', address: '', shiftId: '1' });
@@ -2293,19 +2412,20 @@
             const handleSubmit = (e) => { e.preventDefault(); editingEmp ? onUpdateEmployee({ ...formData, id: editingEmp.id }) : onAddEmployee(formData); setShowModal(false); };
             return (
                 <div className="space-y-6 animate-fade-in">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"><div><h2 className="text-3xl font-black text-slate-800">قائمة الموظفين</h2><p className="text-slate-500 font-bold">إدارة بيانات الكادر البشري في النظام</p></div><div className="flex flex-wrap items-center gap-3"><div className="relative"><Icon name="filter" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /><select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="pr-10 pl-4 py-2.5 rounded-2xl border-2 font-bold focus:outline-none bg-white border-slate-200 text-slate-700 appearance-none cursor-pointer"><option value="all">كافة الأقسام</option>{departmentsList.filter(d => d !== 'all').map(d => <option key={d} value={d}>{d}</option>)}</select></div><input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} />
+                    <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${warningEmp ? 'print:hidden' : ''}`}><div><h2 className="text-3xl font-black text-slate-800">قائمة الموظفين</h2><p className="text-slate-500 font-bold">إدارة بيانات الكادر البشري في النظام</p></div><div className="flex flex-wrap items-center gap-3"><div className="relative"><Icon name="filter" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /><select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="pr-10 pl-4 py-2.5 rounded-2xl border-2 font-bold focus:outline-none bg-white border-slate-200 text-slate-700 appearance-none cursor-pointer"><option value="all">كافة الأقسام</option>{departmentsList.filter(d => d !== 'all').map(d => <option key={d} value={d}>{d}</option>)}</select></div><input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} />
 <button onClick={() => fileInputRef.current.click()} className="px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg bg-emerald-50 text-emerald-700 border border-emerald-100"><Icon name="file-spreadsheet" size={20} /> استيراد Excel</button>
 <button onClick={() => setActiveTab('attendance')} className="px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg bg-blue-50 text-blue-700 border border-blue-100"><Icon name="fingerprint" size={20} /> رفع بيانات البصمة</button>
 <button onClick={() => { setEditingEmp(null); setFormData({ name: '', code: '', joinDate: '', department: '', jobTitle: '', nationalId: '', phone: '', address: '', shiftId: '1' }); setShowModal(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all"><Icon name="plus" size={20} /> إضافة موظف جديد</button></div></div>
-                    <div className="rounded-[40px] shadow-xl overflow-hidden border bg-white border-slate-100">
+                    <div className={`rounded-[40px] shadow-xl overflow-hidden border bg-white border-slate-100 ${warningEmp ? 'print:hidden' : ''}`}>
                         <div className="overflow-x-auto">
                             <table className="w-full text-right border-collapse">
                                 <thead className="bg-slate-50 text-slate-500 text-[11px] font-black uppercase tracking-wider border-b border-slate-100"><tr><th className="px-4 py-5">م</th><th className="px-4 py-5">الكود</th><th className="px-4 py-5">تاريخ التعيين</th><th className="px-6 py-5">الاسم الكامل</th><th className="px-4 py-5">الإدارة</th><th className="px-4 py-5">المسمى الوظيفي</th><th className="px-4 py-5">الوردية</th><th className="px-6 py-5">الرقم القومي</th><th className="px-4 py-5 text-center">الإجراءات</th></tr></thead>
-                                <tbody className="divide-y divide-slate-50">{filteredEmployees.length ? filteredEmployees.map((emp, index) => (<tr key={emp.id} className="hover:bg-indigo-500/5 transition-colors group"><td className="px-4 py-4 font-bold text-slate-500">{index + 1}</td><td className="px-4 py-4 font-mono font-black text-indigo-500">{emp.code}</td><td className="px-4 py-4 text-xs font-bold text-slate-500">{emp.joinDate}</td><td className="px-6 py-4 font-black text-base text-slate-800">{emp.name}</td><td className="px-4 py-4 text-sm font-bold text-slate-500">{emp.department}</td><td className="px-4 py-4 text-sm font-bold text-slate-500">{emp.jobTitle}</td><td className="px-4 py-4 text-[10px] font-bold text-indigo-600">{SHIFTS[emp.shiftId]?.name || '---'}</td><td className="px-6 py-4 font-mono text-xs text-slate-500">{emp.nationalId}</td><td className="px-4 py-4 text-center"><div className="flex justify-center items-center gap-2"><button onClick={() => { setEditingEmp(emp); setFormData({ ...emp }); setShowModal(true); }} className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 transition-all hover:text-white"><Icon name="edit" size={16} /></button><button onClick={() => { if(confirm('حذف الموظف؟')) onDeleteEmployee(emp.id); }} className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 transition-all hover:text-white"><Icon name="trash-2" size={16} /></button></div></td></tr>)) : <tr><td colSpan="9" className="px-6 py-10 text-center text-slate-400 font-bold italic">لا توجد بيانات حالياً</td></tr>}</tbody>
+                                <tbody className="divide-y divide-slate-50">{filteredEmployees.length ? filteredEmployees.map((emp, index) => (<tr key={emp.id} className="hover:bg-indigo-500/5 transition-colors group"><td className="px-4 py-4 font-bold text-slate-500">{index + 1}</td><td className="px-4 py-4 font-mono font-black text-indigo-500">{emp.code}</td><td className="px-4 py-4 text-xs font-bold text-slate-500">{emp.joinDate}</td><td className="px-6 py-4 font-black text-base text-slate-800">{emp.name}</td><td className="px-4 py-4 text-sm font-bold text-slate-500">{emp.department}</td><td className="px-4 py-4 text-sm font-bold text-slate-500">{emp.jobTitle}</td><td className="px-4 py-4 text-[10px] font-bold text-indigo-600">{SHIFTS[emp.shiftId]?.name || '---'}</td><td className="px-6 py-4 font-mono text-xs text-slate-500">{emp.nationalId}</td><td className="px-4 py-4 text-center"><div className="flex justify-center items-center gap-2"><button onClick={() => setWarningEmp(emp)} className="p-2 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500 transition-all hover:text-white" title="إنذار / ملاحظة"><Icon name="alert-triangle" size={16} /></button><button onClick={() => { setEditingEmp(emp); setFormData({ ...emp }); setShowModal(true); }} className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 transition-all hover:text-white"><Icon name="edit" size={16} /></button><button onClick={() => { if(confirm('حذف الموظف؟')) onDeleteEmployee(emp.id); }} className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 transition-all hover:text-white"><Icon name="trash-2" size={16} /></button></div></td></tr>)) : <tr><td colSpan="9" className="px-6 py-10 text-center text-slate-400 font-bold italic">لا توجد بيانات حالياً</td></tr>}</tbody>
                             </table>
                         </div>
                     </div>
                     {showModal && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="w-full max-w-4xl p-10 rounded-[50px] shadow-2xl animate-fade-in border bg-white border-slate-200"><div className="flex justify-between items-center mb-8"><h3 className="text-3xl font-black text-slate-800">{editingEmp ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد'}</h3><button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-rose-500"><Icon name="x" size={32} /></button></div><form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الاسم الكامل</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الكود الوظيفي</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">تاريخ التعيين</label><input required type="date" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.joinDate} onChange={(e) => setFormData({...formData, joinDate: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الإدارة</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">المسمى الوظيفي</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.jobTitle} onChange={(e) => setFormData({...formData, jobTitle: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الرقم القومي</label><input required type="text" maxLength="14" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.nationalId} onChange={(e) => setFormData({...formData, nationalId: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">رقم الهاتف</label><input required type="tel" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الوردية</label><select required className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.shiftId} onChange={(e) => setFormData({...formData, shiftId: e.target.value})}><option value="1">الوردية الأولى (9ص - 5م)</option><option value="2">الوردية الثانية (8:30ص - 5:30م)</option><option value="3">وردية رمضان (9ص - 3م)</option></select></div><div className="md:col-span-2 space-y-1"><label className="text-xs font-black text-slate-500 uppercase">العنوان السكني</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} /></div><div className="md:col-span-3 pt-6"><button type="submit" className="w-full bg-indigo-600 text-white font-black py-4 rounded-3xl text-xl shadow-xl hover:bg-indigo-700 transition-all">حفظ البيانات</button></div></form></div></div>)}
+                    {warningEmp && <WarningModal emp={warningEmp} onClose={() => setWarningEmp(null)} />}
                 </div>
             );
         };
