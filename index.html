@@ -1483,7 +1483,7 @@
                     )}
                     
                     <div className="print-only mb-6 text-center border-b-2 border-slate-900 pb-4">
-                        <h1 className="text-xl font-black mb-1">مسير رواتب الموظفين الشهري</h1>
+                        <h1 className="text-xl font-black mb-1">كشف رواتب الموظفين الشهري</h1>
                         <p className="text-base font-bold">للفترة: {customRange ? `${startDateStr} إلى ${endDateStr}` : selectedMonth}</p>
                         <div className="flex justify-between items-end mt-2 text-xs font-bold">
                             <span>اسم المنشأة: .................................</span>
@@ -1502,7 +1502,7 @@
                             </button>
                             <div>
                                 <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-                                    <Icon name="banknote" className="text-emerald-600" size={32} /> مسير الرواتب الشهري
+                                    <Icon name="banknote" className="text-emerald-600" size={32} /> كشف الرواتب الشهري
                                 </h2>
                                 <p className="text-slate-500 font-bold tracking-wide text-xs">إدارة المستحقات، الاستقطاعات، والتسويات المالية لكل موظف</p>
                             </div>
@@ -1518,7 +1518,7 @@
                                 onClick={handlePrint}
                                 className="bg-slate-900 text-white px-6 py-2.5 rounded-2xl font-black flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all"
                             >
-                                <Icon name="printer" size={18} /> طباعة المسير الكامل
+                                <Icon name="printer" size={18} /> طباعة الكشف الكامل
                             </button>
                             
                             <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
@@ -1544,7 +1544,7 @@
 
                     <div className="rounded-[30px] shadow-2xl overflow-hidden print:overflow-visible border bg-white border-slate-200 landscape-page">
                         <div className="hidden print:block text-center mb-4 border-b-2 border-slate-900 pb-4">
-                            <h1 className="text-3xl font-black text-slate-900">مسير الرواتب الشهري - {selectedMonth}</h1>
+                            <h1 className="text-3xl font-black text-slate-900">كشف الرواتب الشهري - {selectedMonth}</h1>
                             <p className="text-slate-500 font-bold uppercase tracking-widest text-[8px]">Monthly Payroll Register</p>
                         </div>
                         <div className="overflow-x-auto print:overflow-visible payroll-print-wrapper scroll-smooth">
@@ -1806,7 +1806,7 @@
                 { id: 'employees', title: 'فريق العمل', sub: 'جميع ملفات الموظفين', icon: 'users', color: 'bg-indigo-600' },
                 { id: 'attendance', title: 'الحضور والإنصراف', sub: 'سجلات الحضور اليومية', icon: 'clock', color: 'bg-blue-600' },
                 { id: 'monthly_report', title: 'التقرير الشهري', sub: 'ملخص حضور الموظفين', icon: 'file-bar-chart', color: 'bg-indigo-700' },
-                { id: 'payroll', title: 'المرتبات والمكافآت', sub: 'إدارة مسير الرواتب', icon: 'banknote', color: 'bg-emerald-600' },
+                { id: 'payroll', title: 'المرتبات والمكافآت', sub: 'إدارة كشوف الرواتب', icon: 'banknote', color: 'bg-emerald-600' },
                 { id: 'calendar', title: 'التقويم السنوي', sub: 'إدارة المواعيد والاجتماعات', icon: 'calendar', color: 'bg-indigo-500' },
                 { id: 'leaves', title: 'الإجازات', sub: 'رصيد غيابات الشهور', icon: 'calendar-days', color: 'bg-pink-600' },
                 { id: 'archive', title: 'الأرشيف والمستندات', sub: 'مسوغات التعيين والملفات', icon: 'folder-archive', color: 'bg-amber-600' },
