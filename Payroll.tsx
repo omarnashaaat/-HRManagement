@@ -321,6 +321,7 @@ export const Payroll = ({ employees, payrollRecords, setPayrollRecords }: any) =
                                 <th rowSpan={2} className="px-2 py-2 bg-slate-100 min-w-[70px]">الراتب الإجمالي</th>
                                 <th colSpan={2} className="bg-yellow-400 text-white">الأجازة بخصم</th>
                                 <th colSpan={2} className="bg-rose-600 text-white">الجزاءات</th>
+                                <th colSpan={2} className="bg-orange-500 text-white">الغياب</th>
                                 <th colSpan={2} className="bg-sky-500 text-white">التأخير</th>
                                 <th colSpan={2} className="bg-emerald-500 text-white">السُلف</th>
                                 <th colSpan={2} className="bg-indigo-500 text-white">التسويات الشهرية</th>
@@ -331,6 +332,7 @@ export const Payroll = ({ employees, payrollRecords, setPayrollRecords }: any) =
                             <tr className="bg-slate-50 text-slate-600 font-bold">
                                 <th className="bg-yellow-100">عدد</th><th className="bg-yellow-100">قيمة</th>
                                 <th className="bg-rose-100">عدد</th><th className="bg-rose-100">قيمة</th>
+                                <th className="bg-orange-100">عدد</th><th className="bg-orange-100">قيمة</th>
                                 <th className="bg-sky-100">عدد</th><th className="bg-sky-100">قيمة</th>
                                 <th className="bg-emerald-100">قسط</th><th className="bg-emerald-100">إجمالي</th>
                                 <th className="bg-indigo-100">خصم (-)</th><th className="bg-indigo-100">إضافة (+)</th>
@@ -367,6 +369,9 @@ export const Payroll = ({ employees, payrollRecords, setPayrollRecords }: any) =
                                         
                                         <td className="px-1 py-1 bg-rose-50/30"><input type="number" value={record.penaltyCount || ''} onChange={e => updateField(emp.id, 'penaltyCount', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                         <td className="px-1 py-1 bg-rose-50/30 font-bold"><input type="number" value={record.penaltyVal || ''} onChange={e => updateField(emp.id, 'penaltyVal', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
+                                        
+                                        <td className="px-1 py-1 bg-orange-50/30"><input type="number" value={record.absenceCount || ''} onChange={e => updateField(emp.id, 'absenceCount', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
+                                        <td className="px-1 py-1 bg-orange-50/30 font-bold"><input type="number" value={Math.round(record.absenceVal) || ''} onChange={e => updateField(emp.id, 'absenceVal', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                         
                                         <td className="px-1 py-1 bg-sky-50/30"><input type="number" value={record.lateCount || ''} onChange={e => updateField(emp.id, 'lateCount', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                         <td className="px-1 py-1 bg-sky-50/30 font-bold"><input type="number" value={Math.round(record.lateVal) || ''} onChange={e => updateField(emp.id, 'lateVal', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
