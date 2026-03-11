@@ -230,9 +230,11 @@ export const Payroll = ({ employees, payrollRecords, setPayrollRecords }: any) =
             }
 
             const dayRate = (updated.grossSalary || 0) / 30;
+            const basicDayRate = (updated.basicSalary || 0) / 30;
+            
             if (field === 'leaveCount' || field === 'basicSalary' || field === 'mobileAllowance' || field === 'transportAllowance' || field === 'overtimeAllowance') updated.leaveVal = (updated.leaveCount || 0) * dayRate;
             if (field === 'absenceCount' || field === 'basicSalary' || field === 'mobileAllowance' || field === 'transportAllowance' || field === 'overtimeAllowance') updated.absenceVal = (updated.absenceCount || 0) * dayRate;
-            if (field === 'lateCount' || field === 'basicSalary' || field === 'mobileAllowance' || field === 'transportAllowance' || field === 'overtimeAllowance') updated.lateVal = (updated.lateCount || 0) * (dayRate / 8);
+            if (field === 'lateCount' || field === 'basicSalary') updated.lateVal = (updated.lateCount || 0) * (basicDayRate / 8);
         }
 
         setPayrollRecords((prev: any) => ({
