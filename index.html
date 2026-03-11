@@ -1100,7 +1100,7 @@
                         <div className="p-8 max-h-[60vh] overflow-y-auto space-y-6">
                             <div className="flex gap-2 flex-wrap">
                                 <span className="text-xs font-black text-slate-400 w-full mb-1">تسويات سريعة:</span>
-                                {['زيادة مرتب', 'مكافأة تميز', 'بدل سكن', 'تسوية فروقات', 'ساعات إضافية', 'خصم غياب'].map(label => (
+                                {['زيادة مرتب', 'مكافأة تميز', 'بدل سكن', 'تسوية فروقات', 'ساعات إضافية', 'خصم غياب', 'سلفة'].map(label => (
                                     <button 
                                         key={label} 
                                         onClick={() => addItem(label)}
@@ -1255,8 +1255,26 @@
                                     <div className="space-y-3 text-xs">
                                         <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                                             <span className="text-slate-600">الراتب الأساسي:</span>
-                                            <span className="font-bold text-slate-900">{record.grossSalary?.toLocaleString()}</span>
+                                            <span className="font-bold text-slate-900">{record.basicSalary?.toLocaleString() || '0'}</span>
                                         </div>
+                                        {record.mobileAllowance > 0 && (
+                                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                                <span className="text-slate-600">بدل هاتف:</span>
+                                                <span className="font-bold text-slate-900">{record.mobileAllowance.toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                        {record.transportAllowance > 0 && (
+                                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                                <span className="text-slate-600">بدل مواصلات:</span>
+                                                <span className="font-bold text-slate-900">{record.transportAllowance.toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                        {record.overtimeAllowance > 0 && (
+                                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                                <span className="text-slate-600">بدل سهر:</span>
+                                                <span className="font-bold text-slate-900">{record.overtimeAllowance.toLocaleString()}</span>
+                                            </div>
+                                        )}
                                         {record.settlements?.filter(s => s.type === 'addition').map(s => (
                                             <div key={s.id} className="flex justify-between items-center border-b border-slate-100 pb-2">
                                                 <span className="text-slate-600">{s.title || 'تسوية إضافية'}:</span>
@@ -1419,6 +1437,10 @@
                 const monthKey = customRange ? `${startDateStr}_${endDateStr}` : selectedMonth;
                 const monthRecords = payrollRecords[monthKey] || {};
                 const current = monthRecords[empId] || {
+                    basicSalary: 0,
+                    mobileAllowance: 0,
+                    transportAllowance: 0,
+                    overtimeAllowance: 0,
                     grossSalary: 0,
                     leaveCount: 0, leaveVal: 0,
                     penaltyCount: 0, penaltyVal: 0,
@@ -1435,10 +1457,16 @@
                 if (field !== 'settlements' && field !== 'notes') {
                     const numVal = parseFloat(value) || 0;
                     updated[field] = numVal;
+
+                    // Recalculate Gross Salary if any component changes
+                    if (['basicSalary', 'mobileAllowance', 'transportAllowance', 'overtimeAllowance'].includes(field)) {
+                        updated.grossSalary = (updated.basicSalary || 0) + (updated.mobileAllowance || 0) + (updated.transportAllowance || 0) + (updated.overtimeAllowance || 0);
+                    }
+
                     const dayRate = (updated.grossSalary || 0) / 30;
-                    if (field === 'leaveCount') updated.leaveVal = updated.leaveCount * dayRate;
-                    if (field === 'absenceCount') updated.absenceVal = updated.absenceCount * dayRate;
-                    if (field === 'lateCount') updated.lateVal = updated.lateCount * (dayRate / 8);
+                    if (field === 'leaveCount' || field === 'basicSalary' || field === 'mobileAllowance' || field === 'transportAllowance' || field === 'overtimeAllowance') updated.leaveVal = (updated.leaveCount || 0) * dayRate;
+                    if (field === 'absenceCount' || field === 'basicSalary' || field === 'mobileAllowance' || field === 'transportAllowance' || field === 'overtimeAllowance') updated.absenceVal = (updated.absenceCount || 0) * dayRate;
+                    if (field === 'lateCount' || field === 'basicSalary' || field === 'mobileAllowance' || field === 'transportAllowance' || field === 'overtimeAllowance') updated.lateVal = (updated.lateCount || 0) * (dayRate / 8);
                 }
 
                 setPayrollRecords(prev => ({
@@ -1554,8 +1582,10 @@
                                         <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[2%]">م</th>
                                         <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[3%]">الكود</th>
                                         <th rowSpan="2" className="px-2 py-2 bg-slate-100 w-[15%] text-right">اسم الموظف</th>
-                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[7%]">تاريخ التعيين</th>
-                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[8%]">الوظيفة</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[5%]">الراتب الأساسي</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[5%]">بدل هاتف</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[5%]">بدل مواصلات</th>
+                                        <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[5%]">بدل سهر</th>
                                         <th rowSpan="2" className="px-1 py-2 bg-slate-100 w-[7%]">الراتب الإجمالي</th>
                                         <th colSpan="2" className="bg-yellow-400 text-white w-[6%]">الأجازة بخصم</th>
                                         <th colSpan="2" className="bg-rose-600 text-white w-[6%]">الجزاءات</th>
@@ -1597,9 +1627,11 @@
                                                         </button>
                                                     </div>
                                                 </td>
-                                                <td className="px-1 py-2 text-slate-500 font-bold">{emp.joinDate || '---'}</td>
-                                                <td className="px-1 py-2 text-slate-500 font-bold">{emp.jobTitle || '---'}</td>
-                                                <td className="px-1 py-1"><input type="number" value={record.grossSalary || ''} onChange={e => updateField(emp.id, 'grossSalary', e.target.value)} className="w-full text-center bg-transparent focus:bg-white outline-none font-bold" /></td>
+                                                <td className="px-1 py-1"><input type="number" value={record.basicSalary || ''} onChange={e => updateField(emp.id, 'basicSalary', e.target.value)} className="w-full text-center bg-transparent focus:bg-white outline-none" /></td>
+                                                <td className="px-1 py-1"><input type="number" value={record.mobileAllowance || ''} onChange={e => updateField(emp.id, 'mobileAllowance', e.target.value)} className="w-full text-center bg-transparent focus:bg-white outline-none" /></td>
+                                                <td className="px-1 py-1"><input type="number" value={record.transportAllowance || ''} onChange={e => updateField(emp.id, 'transportAllowance', e.target.value)} className="w-full text-center bg-transparent focus:bg-white outline-none" /></td>
+                                                <td className="px-1 py-1"><input type="number" value={record.overtimeAllowance || ''} onChange={e => updateField(emp.id, 'overtimeAllowance', e.target.value)} className="w-full text-center bg-transparent focus:bg-white outline-none" /></td>
+                                                <td className="px-1 py-1 bg-slate-50"><input type="number" value={record.grossSalary || ''} readOnly className="w-full text-center bg-transparent outline-none font-bold cursor-default" /></td>
                                                 
                                                 <td className="px-1 py-1 bg-yellow-50/30"><input type="number" value={record.leaveCount || ''} onChange={e => updateField(emp.id, 'leaveCount', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
                                                 <td className="px-1 py-1 bg-yellow-50/30 font-bold"><input type="number" value={Math.round(record.leaveVal) || ''} onChange={e => updateField(emp.id, 'leaveVal', e.target.value)} className="w-full text-center bg-transparent outline-none" /></td>
