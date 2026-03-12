@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-slate-50 text-slate-800 min-h-screen m-0 overflow-x-hidden;
+  }
+}
+
+@layer components {
+  .desktop-container {
+    max-width: 1600px;
+    @apply mx-auto;
+  }
+  
+  .glass-card {
+    @apply bg-white/90 backdrop-blur-md border border-black/5 shadow-sm transition-all duration-300;
+  }
+
+  .writing-mode-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+
+  .scroll-hidden::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .payroll-table th, .payroll-table td {
+    @apply border border-slate-200;
+  }
+}
+
+@media print {
+  @page { 
+    size: A4 landscape; 
+    margin: 5mm; 
+  }
+  .print-portrait {
+    size: A4 portrait !important;
+  }
+  html, body { 
+    width: 100%;
+    height: auto;
+    background-color: white;
+    color: black;
+    margin: 0;
+    padding: 0;
+  }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  
+  main { padding: 0 !important; margin: 0 !important; }
+  .payroll-table { 
+    width: 100%;
+    border: 1px solid #1e293b;
+    font-size: 8pt;
+    border-collapse: collapse !important;
+  }
+  .payroll-table th, .payroll-table td { 
+    border: 1px solid #1e293b !important;
+    padding: 4px !important;
+    line-height: 1.2 !important;
+  }
+  .payroll-table th {
+    background-color: #f8fafc !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+  }
+  input { 
+    border: none !important;
+    background: transparent !important;
+    text-align: center !important;
+    width: 100% !important;
+    color: black !important;
+  }
+  
+  .shadow-2xl, .shadow-xl, .shadow-sm, .shadow-lg { box-shadow: none !important; }
+  .rounded-[30px], .rounded-[40px], .rounded-[50px] { border-radius: 0 !important; }
+  
+  .print-signatures {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 20px !important;
+    margin-top: 32px !important;
+    text-align: center !important;
+  }
+  .payslip-box {
+    border: 2px solid black !important;
+    padding: 20px !important;
+    margin: 8px !important;
+    break-after: page !important;
+  }
+}
+
+.print-only { display: none; }
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
