@@ -412,12 +412,15 @@
 
             const updateRecord = (empId, field, value) => {
                 const dateRecords = attendanceLog[selectedDate] || {};
-                const currentRecord = dateRecords[empId] || { arrivalTime: '', departureTime: '', deduction: 0, notes: '' };
+                const currentRecord = dateRecords[empId] || { arrivalTime: '', departureTime: '', deduction: 0, lateDeduction: 0, earlyDeduction: 0, shift: '', notes: '' };
                 const newRecord = { ...currentRecord, [field]: value };
-                if (field === 'arrivalTime' || field === 'departureTime') {
-                    const emp = employees.find(e => e.id === empId);
-                    newRecord.deduction = calculateDeduction(newRecord.arrivalTime, newRecord.departureTime, emp?.shiftId);
+                
+                if (field === 'lateDeduction' || field === 'earlyDeduction') {
+                    newRecord.deduction = (parseFloat(newRecord.lateDeduction) || 0) + (parseFloat(newRecord.earlyDeduction) || 0);
+                } else if (field === 'arrivalTime' || field === 'departureTime') {
+                    // Manual override requested
                 }
+
                 setAttendanceLog(prev => {
                     const updated = {
                         ...prev,
@@ -473,6 +476,8 @@
                         const dedVal = row['خصم'] || row['deduction'];
                         const otVal = row['اضافي'] || row['ot'] || row['extra'];
                         const totalVal = row['اجمالي'] || row['total'];
+
+                        const shiftVal = row['الوردية'] || row['shift'] || row['الورديه'];
 
                         if (!code || !dateVal) continue;
 
@@ -553,13 +558,22 @@
                             date: formattedDate,
                             arrivalTime,
                             departureTime,
+                            lateDeduction: lateVal !== undefined ? parseFloat(lateVal) : 0,
+                            earlyDeduction: earlyVal !== undefined ? parseFloat(earlyVal) : 0,
+                            deduction: dedVal !== undefined ? parseFloat(dedVal) : 0,
+                            shift: shiftVal || '',
                             lateHours: lateVal?.toString() || undefined,
                             earlyHours: earlyVal?.toString() || undefined,
-                            deduction: dedVal !== undefined ? parseFloat(dedVal) : calculateDeduction(arrivalTime, departureTime, emp.shiftId),
                             overtimeHours: otVal?.toString() || undefined,
                             totalHours: totalVal?.toString() || undefined,
                             notes: row['ملاحظات'] || ''
                         });
+                        
+                        // Recalculate total deduction if it was not provided but late/early were
+                        const last = parsedRecords[parsedRecords.length - 1];
+                        if (dedVal === undefined && (lateVal !== undefined || earlyVal !== undefined)) {
+                            last.deduction = (parseFloat(last.lateDeduction) || 0) + (parseFloat(last.earlyDeduction) || 0);
+                        }
                     }
 
                     if (parsedRecords.length === 0) {
@@ -579,6 +593,9 @@
                         arrivalTime: rec.arrivalTime,
                         departureTime: rec.departureTime,
                         deduction: rec.deduction,
+                        lateDeduction: rec.lateDeduction,
+                        earlyDeduction: rec.earlyDeduction,
+                        shift: rec.shift,
                         notes: rec.notes,
                         lateHours: rec.lateHours,
                         earlyHours: rec.earlyHours,
@@ -594,9 +611,10 @@
             const updatePreviewRow = (idx, field, value) => {
                 const newData = [...previewData];
                 newData[idx] = { ...newData[idx], [field]: value };
-                if (field === 'arrivalTime' || field === 'departureTime') {
-                    const emp = employees.find(e => e.id === newData[idx].empId);
-                    newData[idx].deduction = calculateDeduction(newData[idx].arrivalTime, newData[idx].departureTime, emp?.shiftId);
+                if (field === 'lateDeduction' || field === 'earlyDeduction') {
+                    newData[idx].deduction = (parseFloat(newData[idx].lateDeduction) || 0) + (parseFloat(newData[idx].earlyDeduction) || 0);
+                } else if (field === 'arrivalTime' || field === 'departureTime') {
+                    // Manual override requested
                 }
                 setPreviewData(newData);
             };
@@ -624,9 +642,12 @@
                                         <thead className="bg-slate-100 text-slate-500 text-[10px] font-black uppercase sticky top-0 z-10">
                                             <tr>
                                                 <th className="px-4 py-3 border-b">الموظف</th>
+                                                <th className="px-4 py-3 border-b">الوردية</th>
                                                 <th className="px-4 py-3 border-b">التاريخ</th>
                                                 <th className="px-4 py-3 border-b">حضور</th>
                                                 <th className="px-4 py-3 border-b">انصراف</th>
+                                                <th className="px-4 py-3 border-b text-center">تأخير (س)</th>
+                                                <th className="px-4 py-3 border-b text-center">مبكر (س)</th>
                                                 <th className="px-4 py-3 border-b text-center">خصم</th>
                                                 <th className="px-4 py-3 border-b">ملاحظات</th>
                                                 <th className="px-4 py-3 border-b text-center">إجراء</th>
@@ -636,6 +657,14 @@
                                             {previewData.map((rec, idx) => (
                                                 <tr key={idx} className="hover:bg-blue-50/30">
                                                     <td className="px-4 py-3"><span className="font-black block text-xs">{rec.empName}</span><span className="text-[9px] text-slate-400">كود: {rec.empCode}</span></td>
+                                                    <td className="px-4 py-3">
+                                                        <input 
+                                                            type="text" 
+                                                            value={rec.shift || ''} 
+                                                            onChange={(e) => updatePreviewRow(idx, 'shift', e.target.value)}
+                                                            className="w-16 bg-slate-50 p-1.5 rounded-lg text-[10px] font-bold border border-slate-100 outline-none"
+                                                        />
+                                                    </td>
                                                     <td className="px-4 py-3 text-xs font-bold">{rec.date}</td>
                                                     <td className="px-4 py-3">
                                                         <input 
@@ -651,6 +680,24 @@
                                                             value={rec.departureTime} 
                                                             onChange={(e) => updatePreviewRow(idx, 'departureTime', e.target.value)}
                                                             className="bg-slate-50 p-1.5 rounded-lg text-[10px] font-bold border border-slate-100 outline-none focus:ring-1 focus:ring-blue-400"
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.5"
+                                                            value={rec.lateDeduction || 0} 
+                                                            onChange={(e) => updatePreviewRow(idx, 'lateDeduction', e.target.value)}
+                                                            className="w-12 bg-slate-50 p-1.5 rounded-lg text-[10px] font-bold border border-slate-100 text-center outline-none"
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.5"
+                                                            value={rec.earlyDeduction || 0} 
+                                                            onChange={(e) => updatePreviewRow(idx, 'earlyDeduction', e.target.value)}
+                                                            className="w-12 bg-slate-50 p-1.5 rounded-lg text-[10px] font-bold border border-slate-100 text-center outline-none"
                                                         />
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
@@ -714,40 +761,84 @@
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                         <div className="lg:col-span-1 space-y-4">
                             <div className="bg-blue-600 rounded-[40px] p-8 text-white shadow-xl">
-                                <h3 className="font-black text-lg mb-4 flex items-center gap-2"><Icon name="info" size={20} /> لائحة التأخير</h3>
-                                <ul className="space-y-2 text-xs font-bold opacity-90">
-                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>حتى 09:15 ص</span> <span>سماح</span></li>
-                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>حتى 09:30 ص</span> <span>0.5 س</span></li>
-                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>حتى 10:00 ص</span> <span>1 س</span></li>
-                                    <li className="flex justify-between"><span>بعد 12:00 م</span> <span>8 س</span></li>
-                                </ul>
+                                <h3 className="font-black text-lg mb-4 flex items-center gap-2"><Icon name="info" size={20} /> لائحة التأخير (يدوي)</h3>
+                                <div className="space-y-2 text-xs font-bold opacity-90">
+                                    <p className="border-b border-white/20 pb-1">يمكنك تعديل الخصم يدوياً لكل موظف في الجدول.</p>
+                                    <p>النظام يقترح خصم تلقائي ولكن القرار النهائي للمدير.</p>
+                                </div>
                             </div>
                             <div className="bg-slate-800 rounded-[40px] p-8 text-white shadow-xl">
-                                <h3 className="font-black text-lg mb-4 flex items-center gap-2"><Icon name="alert-circle" size={20} /> انصراف مبكر</h3>
-                                <ul className="space-y-2 text-xs font-bold opacity-90">
-                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>من 05:00 م</span> <span>طبيعي</span></li>
-                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>04:45 م</span> <span>0.5 س</span></li>
-                                    <li className="flex justify-between border-b border-white/20 pb-1"><span>04:00 م</span> <span>1 س</span></li>
-                                    <li className="flex justify-between"><span>02:00 م</span> <span>4 س</span></li>
-                                </ul>
+                                <h3 className="font-black text-lg mb-4 flex items-center gap-2"><Icon name="alert-circle" size={20} /> انصراف مبكر (يدوي)</h3>
+                                <div className="space-y-2 text-xs font-bold opacity-90">
+                                    <p className="border-b border-white/20 pb-1">يتم إدخال خصم الانصراف المبكر يدوياً في خانة "مبكر (س)".</p>
+                                </div>
                             </div>
                         </div>
                         <div className="lg:col-span-3">
                             <div className="rounded-[40px] shadow-2xl overflow-hidden border bg-white border-slate-100">
                                 <table className="w-full text-right">
                                     <thead className="bg-slate-50 text-slate-500 text-[11px] font-black uppercase border-b">
-                                        <tr><th className="px-6 py-5">الموظف</th><th className="px-4 py-5">حضور</th><th className="px-4 py-5">انصراف</th><th className="px-4 py-5 text-center">خصم</th><th className="px-4 py-5">ملاحظات</th></tr>
+                                        <tr>
+                                            <th className="px-6 py-5">الموظف</th>
+                                            <th className="px-4 py-5">الوردية</th>
+                                            <th className="px-4 py-5">حضور</th>
+                                            <th className="px-4 py-5">انصراف</th>
+                                            <th className="px-4 py-5 text-center">تأخير (س)</th>
+                                            <th className="px-4 py-5 text-center">مبكر (س)</th>
+                                            <th className="px-4 py-5 text-center">إجمالي الخصم</th>
+                                            <th className="px-4 py-5">ملاحظات</th>
+                                        </tr>
                                     </thead>
                                     <tbody className="divide-y">
                                         {employees.map(emp => {
-                                            const record = (attendanceLog[selectedDate] && attendanceLog[selectedDate][emp.id]) || { arrivalTime: '', departureTime: '', deduction: 0, notes: '' };
+                                            const record = (attendanceLog[selectedDate] && attendanceLog[selectedDate][emp.id]) || { arrivalTime: '', departureTime: '', deduction: 0, lateDeduction: 0, earlyDeduction: 0, shift: '', notes: '' };
                                             return (
                                                 <tr key={emp.id} className="hover:bg-blue-50/30">
-                                                    <td className="px-6 py-4"><span className="font-black block">{emp.name}</span><span className="text-[10px] text-slate-400">كود: {emp.code}</span></td>
-                                                    <td className="px-4 py-4"><input type="time" value={record.arrivalTime} onChange={(e) => updateRecord(emp.id, 'arrivalTime', e.target.value)} className="bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" /></td>
-                                                    <td className="px-4 py-4"><input type="time" value={record.departureTime} onChange={(e) => updateRecord(emp.id, 'departureTime', e.target.value)} className="bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" /></td>
-                                                    <td className="px-4 py-4 text-center"><span className={`px-4 py-2 rounded-full font-black text-xs ${record.deduction > 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>{record.deduction} س</span></td>
-                                                    <td className="px-4 py-4"><input type="text" value={record.notes} onChange={(e) => updateRecord(emp.id, 'notes', e.target.value)} className="w-full bg-transparent border-b text-xs" /></td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="font-black block">{emp.name}</span>
+                                                        <span className="text-[10px] text-slate-400">كود: {emp.code}</span>
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="الوردية"
+                                                            value={record.shift || ''} 
+                                                            onChange={(e) => updateRecord(emp.id, 'shift', e.target.value)} 
+                                                            className="w-20 bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" 
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        <input type="time" value={record.arrivalTime} onChange={(e) => updateRecord(emp.id, 'arrivalTime', e.target.value)} className="bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" />
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        <input type="time" value={record.departureTime} onChange={(e) => updateRecord(emp.id, 'departureTime', e.target.value)} className="bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" />
+                                                    </td>
+                                                    <td className="px-4 py-4 text-center">
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.5"
+                                                            value={record.lateDeduction || 0} 
+                                                            onChange={(e) => updateRecord(emp.id, 'lateDeduction', e.target.value)} 
+                                                            className="w-16 bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100 text-center" 
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-4 text-center">
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.5"
+                                                            value={record.earlyDeduction || 0} 
+                                                            onChange={(e) => updateRecord(emp.id, 'earlyDeduction', e.target.value)} 
+                                                            className="w-16 bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100 text-center" 
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-4 text-center">
+                                                        <span className={`px-4 py-2 rounded-full font-black text-xs ${record.deduction > 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                                            {record.deduction} س
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        <input type="text" value={record.notes} onChange={(e) => updateRecord(emp.id, 'notes', e.target.value)} className="w-full bg-transparent border-b text-xs" />
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
@@ -808,8 +899,8 @@
                         const record = (attendanceLog[dateStr] && attendanceLog[dateStr][emp.id]) || null;
                         
                         // Calculate Late/Early/Total for the report
-                        const shift = SHIFTS[emp.shiftId] || SHIFTS['1'];
-                        const details = calculateDetailedAttendance(record?.arrivalTime, record?.departureTime, emp.shiftId);
+                        const shift = SHIFTS['1'];
+                        const details = calculateDetailedAttendance(record?.arrivalTime, record?.departureTime, '1');
 
                         return { 
                             no: idx + 1,
@@ -820,7 +911,10 @@
                             total: record?.totalHours !== undefined ? record.totalHours : details.total,
                             late: record?.lateHours !== undefined ? record.lateHours : details.late,
                             early: record?.earlyHours !== undefined ? record.earlyHours : details.early,
-                            ded: record?.deduction !== undefined ? record.deduction : (record ? calculateDeduction(record.arrivalTime, record.departureTime, emp.shiftId) : 0),
+                            lateDed: record?.lateDeduction || 0,
+                            earlyDed: record?.earlyDeduction || 0,
+                            shift: record?.shift || '',
+                            ded: record?.deduction !== undefined ? record.deduction : (record ? calculateDeduction(record.arrivalTime, record.departureTime, '1') : 0),
                             ot: record?.overtimeHours !== undefined ? record.overtimeHours : details.ot,
                             notes: record?.notes || '',
                             isWeekend: dateObj.getDay() === 5 || dateObj.getDay() === 6
@@ -851,25 +945,18 @@
             const updateReportRecord = (date, empId, field, value) => {
                 const newLog = { ...attendanceLog };
                 if (!newLog[date]) newLog[date] = {};
-                if (!newLog[date][empId]) newLog[date][empId] = { arrivalTime: '', departureTime: '', deduction: 0, notes: '' };
+                if (!newLog[date][empId]) newLog[date][empId] = { arrivalTime: '', departureTime: '', deduction: 0, lateDeduction: 0, earlyDeduction: 0, shift: '', notes: '' };
                 
                 newLog[date][empId] = { ...newLog[date][empId], [field]: value };
                 
-                // Recalculate everything if times changed
-                if (field === 'arrivalTime' || field === 'departureTime') {
-                    const emp = employees.find(e => e.id === empId);
-                    const arrival = newLog[date][empId].arrivalTime;
-                    const departure = newLog[date][empId].departureTime;
-                    
-                    const details = calculateDetailedAttendance(arrival, departure, emp?.shiftId);
-                    newLog[date][empId].deduction = calculateDeduction(arrival, departure, emp?.shiftId);
-                    newLog[date][empId].totalHours = details.total;
-                    newLog[date][empId].lateHours = details.late;
-                    newLog[date][empId].earlyHours = details.early;
-                    newLog[date][empId].overtimeHours = details.ot;
+                if (field === 'lateDeduction' || field === 'earlyDeduction') {
+                    newLog[date][empId].deduction = (parseFloat(newLog[date][empId].lateDeduction) || 0) + (parseFloat(newLog[date][empId].earlyDeduction) || 0);
+                } else if (field === 'arrivalTime' || field === 'departureTime') {
+                    // Manual override
                 }
                 
                 setAttendanceLog(newLog);
+                localStorage.setItem('hr_attendance', JSON.stringify(newLog));
             };
 
             return (
@@ -945,11 +1032,12 @@
                                                 <th className="border-r border-slate-300 py-2 print:py-0.5 w-8">م</th>
                                                 <th className="border-r border-slate-300 py-2 print:py-0.5 w-20">التاريخ</th>
                                                 <th className="border-r border-slate-300 py-2 print:py-0.5 w-20">اليوم</th>
+                                                <th className="border-r border-slate-300 py-2 print:py-0.5 w-14">الوردية</th>
                                                 <th className="border-r border-slate-300 py-2 print:py-0.5 w-14">دخول</th>
                                                 <th className="border-r border-slate-300 py-2 print:py-0.5 w-14">خروج</th>
                                                 <th className="border-r border-slate-300 py-2 print:py-0.5 w-14">إجمالي</th>
-                                                <th className="border-r border-slate-300 py-2 print:py-0.5 w-14">تأخير</th>
-                                                <th className="border-r border-slate-300 py-2 print:py-0.5 w-14">مبكر</th>
+                                                <th className="border-r border-slate-300 py-2 print:py-0.5 w-14">تأخير (س)</th>
+                                                <th className="border-r border-slate-300 py-2 print:py-0.5 w-14">مبكر (س)</th>
                                                 <th className="border-r border-slate-300 py-2 print:py-0.5 w-14">خصم</th>
                                                 <th className="border-r border-slate-300 py-2 print:py-0.5 w-14">إضافي</th>
                                                 <th className="py-2 print:py-0.5">ملاحظات</th>
@@ -961,6 +1049,14 @@
                                                     <td className="border-r border-slate-200 py-1 print:py-0 font-bold">{r.no}</td>
                                                     <td className="border-r border-slate-200 py-1 print:py-0">{new Date(r.date).toLocaleDateString('en-GB')}</td>
                                                     <td className="border-r border-slate-200 py-1 print:py-0 font-bold">{r.day}</td>
+                                                    <td className="border-r border-slate-200 py-1 print:py-0">
+                                                        <input 
+                                                            type="text" 
+                                                            value={r.shift} 
+                                                            onChange={(e) => updateReportRecord(r.date, emp.id, 'shift', e.target.value)}
+                                                            className="w-full text-center bg-transparent outline-none focus:bg-blue-50 print:text-[8px] print:h-auto"
+                                                        />
+                                                    </td>
                                                     <td className="border-r border-slate-200 py-1 print:py-0">
                                                         <input 
                                                             type="time" 
@@ -987,17 +1083,19 @@
                                                     </td>
                                                     <td className="border-r border-slate-200 py-1 print:py-0 font-bold">
                                                         <input 
-                                                            type="text" 
-                                                            value={r.late} 
-                                                            onChange={(e) => updateReportRecord(r.date, emp.id, 'lateHours', e.target.value)}
+                                                            type="number" 
+                                                            step="0.5"
+                                                            value={r.lateDed || 0} 
+                                                            onChange={(e) => updateReportRecord(r.date, emp.id, 'lateDeduction', e.target.value)}
                                                             className="w-full text-center bg-transparent outline-none focus:bg-blue-50 print:text-[8px] print:h-auto"
                                                         />
                                                     </td>
                                                     <td className="border-r border-slate-200 py-1 print:py-0 font-bold">
                                                         <input 
-                                                            type="text" 
-                                                            value={r.early} 
-                                                            onChange={(e) => updateReportRecord(r.date, emp.id, 'earlyHours', e.target.value)}
+                                                            type="number" 
+                                                            step="0.5"
+                                                            value={r.earlyDed || 0} 
+                                                            onChange={(e) => updateReportRecord(r.date, emp.id, 'earlyDeduction', e.target.value)}
                                                             className="w-full text-center bg-transparent outline-none focus:bg-blue-50 print:text-[8px] print:h-auto"
                                                         />
                                                     </td>
@@ -1466,9 +1564,10 @@
                     const dayRate = (updated.grossSalary || 0) / 30;
                     const basicDayRate = (updated.basicSalary || 0) / 30;
                     
-                    if (field === 'leaveCount' || field === 'basicSalary' || field === 'mobileAllowance' || field === 'transportAllowance' || field === 'overtimeAllowance') updated.leaveVal = (updated.leaveCount || 0) * dayRate;
-                    if (field === 'absenceCount' || field === 'basicSalary' || field === 'mobileAllowance' || field === 'transportAllowance' || field === 'overtimeAllowance') updated.absenceVal = (updated.absenceCount || 0) * dayRate;
-                    if (field === 'lateCount' || field === 'basicSalary') updated.lateVal = (updated.lateCount || 0) * (basicDayRate / 8);
+                    // Manual override requested for all deductions
+                    // if (field === 'leaveCount' || field === 'basicSalary' || field === 'mobileAllowance' || field === 'transportAllowance' || field === 'overtimeAllowance') updated.leaveVal = (updated.leaveCount || 0) * dayRate;
+                    // if (field === 'absenceCount' || field === 'basicSalary' || field === 'mobileAllowance' || field === 'transportAllowance' || field === 'overtimeAllowance') updated.absenceVal = (updated.absenceCount || 0) * dayRate;
+                    // if (field === 'lateCount' || field === 'basicSalary') updated.lateVal = (updated.lateCount || 0) * (basicDayRate / 8);
                 }
 
                 setPayrollRecords(prev => ({
@@ -1818,8 +1917,8 @@
         };
 
         const INITIAL_EMPLOYEES = [
-            { id: '1', code: '101', name: 'أحمد محمد علي', jobTitle: 'مدير مبيعات', department: 'المبيعات', status: 'نشط', joinDate: '2023-01-15', totalLeaves: 21, monthlyLeaves: Array(12).fill(0), notes: '', nationalId: '29001011234567', phone: '01012345678', address: 'القاهرة - مدينة نصر', shiftId: '1' },
-            { id: '2', code: '102', name: 'سارة محمود حسن', jobTitle: 'محاسب مالي', department: 'المالية', status: 'نشط', joinDate: '2023-03-10', totalLeaves: 30, monthlyLeaves: [1.5, 2, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0], notes: 'مجتهدة جداً', nationalId: '29505021234568', phone: '01122334455', address: 'الجيزة - الدقي', shiftId: '1' },
+            { id: '1', code: '101', name: 'أحمد محمد علي', jobTitle: 'مدير مبيعات', department: 'المبيعات', status: 'نشط', joinDate: '2023-01-15', totalLeaves: 21, monthlyLeaves: Array(12).fill(0), notes: '', nationalId: '29001011234567', phone: '01012345678', address: 'القاهرة - مدينة نصر', shift: 'الوردية الأولى' },
+            { id: '2', code: '102', name: 'سارة محمود حسن', jobTitle: 'محاسب مالي', department: 'المالية', status: 'نشط', joinDate: '2023-03-10', totalLeaves: 30, monthlyLeaves: [1.5, 2, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0], notes: 'مجتهدة جداً', nationalId: '29505021234568', phone: '01122334455', address: 'الجيزة - الدقي', shift: 'الوردية الأولى' },
         ];
 
         const INITIAL_CALENDAR_EVENTS = [
@@ -2641,7 +2740,7 @@
             const [warningEmp, setWarningEmp] = useState(null);
             const [selectedDept, setSelectedDept] = useState('all');
             const fileInputRef = useRef(null);
-            const [formData, setFormData] = useState({ name: '', code: '', joinDate: '', department: '', jobTitle: '', nationalId: '', phone: '', address: '', shiftId: '1' });
+            const [formData, setFormData] = useState({ name: '', code: '', joinDate: '', department: '', jobTitle: '', nationalId: '', phone: '', address: '', shift: 'الوردية الأولى' });
             const departmentsList = useMemo(() => ['all', ...new Set(employees.map(e => e.department).filter(Boolean))], [employees]);
             const filteredEmployees = useMemo(() => selectedDept === 'all' ? employees : employees.filter(e => e.department === selectedDept), [employees, selectedDept]);
             const normalizeText = (t) => t ? t.toString().trim().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ') : "";
@@ -2705,7 +2804,7 @@
                             nationalId: r[m.nationalId]?.toString() || '', 
                             phone: r[m.phone]?.toString() || '', 
                             address: r[m.address]?.toString() || '', 
-                            shiftId: r[m.shift]?.toString().includes('2') ? '2' : (r[m.shift]?.toString().includes('رمضان') ? '3' : '1'), 
+                            shift: r[m.shift]?.toString() || 'الوردية الأولى', 
                             status: 'نشط', 
                             totalLeaves: 21, 
                             monthlyLeaves: Array(12).fill(0) 
@@ -2734,16 +2833,16 @@
                     <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${warningEmp ? 'print:hidden' : ''}`}><div><h2 className="text-3xl font-black text-slate-800">قائمة الموظفين</h2><p className="text-slate-500 font-bold">إدارة بيانات الكادر البشري في النظام</p></div><div className="flex flex-wrap items-center gap-3"><div className="relative"><Icon name="filter" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /><select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="pr-10 pl-4 py-2.5 rounded-2xl border-2 font-bold focus:outline-none bg-white border-slate-200 text-slate-700 appearance-none cursor-pointer"><option value="all">كافة الأقسام</option>{departmentsList.filter(d => d !== 'all').map(d => <option key={d} value={d}>{d}</option>)}</select></div><input type="file" ref={fileInputRef} className="hidden" accept=".xlsx, .xls" onChange={handleExcelUpload} />
 <button onClick={() => fileInputRef.current.click()} className="px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg bg-emerald-50 text-emerald-700 border border-emerald-100"><Icon name="file-spreadsheet" size={20} /> استيراد Excel</button>
 <button onClick={() => setActiveTab('attendance')} className="px-6 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg bg-blue-50 text-blue-700 border border-blue-100"><Icon name="fingerprint" size={20} /> رفع بيانات البصمة</button>
-<button onClick={() => { setEditingEmp(null); setFormData({ name: '', code: '', joinDate: '', department: '', jobTitle: '', nationalId: '', phone: '', address: '', shiftId: '1' }); setShowModal(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all"><Icon name="plus" size={20} /> إضافة موظف جديد</button></div></div>
+<button onClick={() => { setEditingEmp(null); setFormData({ name: '', code: '', joinDate: '', department: '', jobTitle: '', nationalId: '', phone: '', address: '', shift: 'الوردية الأولى' }); setShowModal(true); }} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition-all"><Icon name="plus" size={20} /> إضافة موظف جديد</button></div></div>
                     <div className={`rounded-[40px] shadow-xl overflow-hidden border bg-white border-slate-100 ${warningEmp ? 'print:hidden' : ''}`}>
                         <div className="overflow-x-auto">
                             <table className="w-full text-right border-collapse">
                                 <thead className="bg-slate-50 text-slate-500 text-[11px] font-black uppercase tracking-wider border-b border-slate-100"><tr><th className="px-4 py-5">م</th><th className="px-4 py-5">الكود</th><th className="px-4 py-5">تاريخ التعيين</th><th className="px-6 py-5">الاسم الكامل</th><th className="px-4 py-5">الإدارة</th><th className="px-4 py-5">المسمى الوظيفي</th><th className="px-4 py-5">الوردية</th><th className="px-6 py-5">الرقم القومي</th><th className="px-4 py-5 text-center">الإجراءات</th></tr></thead>
-                                <tbody className="divide-y divide-slate-50">{filteredEmployees.length ? filteredEmployees.map((emp, index) => (<tr key={emp.id} className="hover:bg-indigo-500/5 transition-colors group"><td className="px-4 py-4 font-bold text-slate-500">{index + 1}</td><td className="px-4 py-4 font-mono font-black text-indigo-500">{emp.code}</td><td className="px-4 py-4 text-xs font-bold text-slate-500">{emp.joinDate}</td><td className="px-6 py-4 font-black text-base text-slate-800">{emp.name}</td><td className="px-4 py-4 text-sm font-bold text-slate-500">{emp.department}</td><td className="px-4 py-4 text-sm font-bold text-slate-500">{emp.jobTitle}</td><td className="px-4 py-4 text-[10px] font-bold text-indigo-600">{SHIFTS[emp.shiftId]?.name || '---'}</td><td className="px-6 py-4 font-mono text-xs text-slate-500">{emp.nationalId}</td><td className="px-4 py-4 text-center"><div className="flex justify-center items-center gap-2"><button onClick={() => setWarningEmp(emp)} className="p-2 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500 transition-all hover:text-white" title="إنذار / ملاحظة"><Icon name="alert-triangle" size={16} /></button><button onClick={() => { setEditingEmp(emp); setFormData({ ...emp }); setShowModal(true); }} className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 transition-all hover:text-white"><Icon name="edit" size={16} /></button><button onClick={() => { if(confirm('حذف الموظف؟')) onDeleteEmployee(emp.id); }} className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 transition-all hover:text-white"><Icon name="trash-2" size={16} /></button></div></td></tr>)) : <tr><td colSpan="9" className="px-6 py-10 text-center text-slate-400 font-bold italic">لا توجد بيانات حالياً</td></tr>}</tbody>
+                                <tbody className="divide-y divide-slate-50">{filteredEmployees.length ? filteredEmployees.map((emp, index) => (<tr key={emp.id} className="hover:bg-indigo-500/5 transition-colors group"><td className="px-4 py-4 font-bold text-slate-500">{index + 1}</td><td className="px-4 py-4 font-mono font-black text-indigo-500">{emp.code}</td><td className="px-4 py-4 text-xs font-bold text-slate-500">{emp.joinDate}</td><td className="px-6 py-4 font-black text-base text-slate-800">{emp.name}</td><td className="px-4 py-4 text-sm font-bold text-slate-500">{emp.department}</td><td className="px-4 py-4 text-sm font-bold text-slate-500">{emp.jobTitle}</td><td className="px-4 py-4 text-[10px] font-bold text-indigo-600">{emp.shift || '---'}</td><td className="px-6 py-4 font-mono text-xs text-slate-500">{emp.nationalId}</td><td className="px-4 py-4 text-center"><div className="flex justify-center items-center gap-2"><button onClick={() => setWarningEmp(emp)} className="p-2 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500 transition-all hover:text-white" title="إنذار / ملاحظة"><Icon name="alert-triangle" size={16} /></button><button onClick={() => { setEditingEmp(emp); setFormData({ ...emp }); setShowModal(true); }} className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 transition-all hover:text-white"><Icon name="edit" size={16} /></button><button onClick={() => { if(confirm('حذف الموظف؟')) onDeleteEmployee(emp.id); }} className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 transition-all hover:text-white"><Icon name="trash-2" size={16} /></button></div></td></tr>)) : <tr><td colSpan="9" className="px-6 py-10 text-center text-slate-400 font-bold italic">لا توجد بيانات حالياً</td></tr>}</tbody>
                             </table>
                         </div>
                     </div>
-                    {showModal && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="w-full max-w-4xl p-10 rounded-[50px] shadow-2xl animate-fade-in border bg-white border-slate-200"><div className="flex justify-between items-center mb-8"><h3 className="text-3xl font-black text-slate-800">{editingEmp ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد'}</h3><button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-rose-500"><Icon name="x" size={32} /></button></div><form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الاسم الكامل</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الكود الوظيفي</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">تاريخ التعيين</label><input required type="date" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.joinDate} onChange={(e) => setFormData({...formData, joinDate: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الإدارة</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">المسمى الوظيفي</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.jobTitle} onChange={(e) => setFormData({...formData, jobTitle: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الرقم القومي</label><input required type="text" pattern="\d{14}" title="يجب إدخال 14 رقم" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.nationalId} onChange={(e) => setFormData({...formData, nationalId: e.target.value.replace(/\D/g, '')})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">رقم الهاتف</label><input required type="tel" pattern="01[0125]\d{8}" title="يجب إدخال رقم هاتف مصري صحيح" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/[^\d+]/g, '')})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الوردية</label><select required className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.shiftId} onChange={(e) => setFormData({...formData, shiftId: e.target.value})}><option value="1">الوردية الأولى (9ص - 5م)</option><option value="2">الوردية الثانية (8:30ص - 5:30م)</option><option value="3">وردية رمضان (9ص - 3م)</option></select></div><div className="md:col-span-2 space-y-1"><label className="text-xs font-black text-slate-500 uppercase">العنوان السكني</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} /></div><div className="md:col-span-3 pt-6"><button type="submit" className="w-full bg-indigo-600 text-white font-black py-4 rounded-3xl text-xl shadow-xl hover:bg-indigo-700 transition-all">حفظ البيانات</button></div></form></div></div>)}
+                    {showModal && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="w-full max-w-4xl p-10 rounded-[50px] shadow-2xl animate-fade-in border bg-white border-slate-200"><div className="flex justify-between items-center mb-8"><h3 className="text-3xl font-black text-slate-800">{editingEmp ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد'}</h3><button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-rose-500"><Icon name="x" size={32} /></button></div><form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الاسم الكامل</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الكود الوظيفي</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">تاريخ التعيين</label><input required type="date" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.joinDate} onChange={(e) => setFormData({...formData, joinDate: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الإدارة</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">المسمى الوظيفي</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.jobTitle} onChange={(e) => setFormData({...formData, jobTitle: e.target.value})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الرقم القومي</label><input required type="text" pattern="\d{14}" title="يجب إدخال 14 رقم" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.nationalId} onChange={(e) => setFormData({...formData, nationalId: e.target.value.replace(/\D/g, '')})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">رقم الهاتف</label><input required type="tel" pattern="01[0125]\d{8}" title="يجب إدخال رقم هاتف مصري صحيح" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/[^\d+]/g, '')})} /></div><div className="space-y-1"><label className="text-xs font-black text-slate-500 uppercase">الوردية</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.shift} onChange={(e) => setFormData({...formData, shift: e.target.value})} /></div><div className="md:col-span-2 space-y-1"><label className="text-xs font-black text-slate-500 uppercase">العنوان السكني</label><input required type="text" className="w-full px-5 py-3 rounded-2xl border outline-none font-bold bg-slate-50 border-slate-100 text-slate-800" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} /></div><div className="md:col-span-3 pt-6"><button type="submit" className="w-full bg-indigo-600 text-white font-black py-4 rounded-3xl text-xl shadow-xl hover:bg-indigo-700 transition-all">حفظ البيانات</button></div></form></div></div>)}
                     {warningEmp && <WarningModal emp={warningEmp} onClose={() => setWarningEmp(null)} />}
                 </div>
             );
