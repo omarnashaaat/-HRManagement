@@ -40,6 +40,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     name TEXT,
     role TEXT,
+    experience TEXT,
     email TEXT,
     phone TEXT,
     status TEXT,
@@ -123,20 +124,21 @@ async function startServer() {
   });
 
   app.post("/api/candidates", (req, res) => {
-    const { id, name, role, email, phone, status, priority, score, createdAt, notes } = req.body;
+    const { id, name, role, experience, email, phone, status, priority, score, createdAt, notes } = req.body;
     db.prepare(`
-      INSERT INTO candidates (id, name, role, email, phone, status, priority, score, createdAt, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO candidates (id, name, role, experience, email, phone, status, priority, score, createdAt, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         role = excluded.role,
+        experience = excluded.experience,
         email = excluded.email,
         phone = excluded.phone,
         status = excluded.status,
         priority = excluded.priority,
         score = excluded.score,
         notes = excluded.notes
-    `).run(id, name, role, email, phone, status, priority, score, createdAt, notes);
+    `).run(id, name, role, experience, email, phone, status, priority, score, createdAt, notes);
     res.json({ success: true });
   });
 
