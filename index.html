@@ -2452,6 +2452,14 @@
                     ratioCompany: '18.75',
                     ratioEmployee: '11'
                 };
+                
+                // Pre-calculate amounts if salary exists but amounts don't
+                if (record.insuranceSalary && (!record.companyAmount || !record.employeeAmount)) {
+                    const salary = parseFloat(record.insuranceSalary) || 0;
+                    record.companyAmount = (salary * 0.1875).toFixed(2);
+                    record.employeeAmount = (salary * 0.11).toFixed(2);
+                }
+                
                 setFormData(record);
                 setEditingId(emp.id);
             };
@@ -2536,9 +2544,41 @@
                                                 </td>
                                                 <td className="px-4 py-4">{isEditing ? <input type="text" className="w-24 p-1 border rounded text-xs font-mono" value={formData.insuranceNumber} onChange={e => setFormData({...formData, insuranceNumber: e.target.value})} /> : <span className="font-mono text-xs text-slate-500">{record.insuranceNumber || '---'}</span>}</td>
                                                 <td className="px-4 py-4">{isEditing ? <input type="date" className="w-32 p-1 border rounded text-xs" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} /> : <span className="font-mono text-[10px] text-slate-400">{record.startDate || '---'}</span>}</td>
-                                                <td className="px-4 py-4">{isEditing ? <input type="number" className="w-20 p-1 border rounded text-xs font-bold" value={formData.insuranceSalary} onChange={e => setFormData({...formData, insuranceSalary: e.target.value})} /> : <span className="font-bold text-sky-700">{record.insuranceSalary ? `${record.insuranceSalary} ج.م` : '---'}</span>}</td>
+                                                <td className="px-4 py-4">{isEditing ? <input type="number" className="w-20 p-1 border rounded text-xs font-bold" value={formData.insuranceSalary} onChange={e => {
+                                                    const val = e.target.value;
+                                                    const salary = parseFloat(val) || 0;
+                                                    setFormData({
+                                                        ...formData, 
+                                                        insuranceSalary: val,
+                                                        companyAmount: (salary * 0.1875).toFixed(2),
+                                                        employeeAmount: (salary * 0.11).toFixed(2)
+                                                    });
+                                                }} /> : <span className="font-bold text-sky-700">{record.insuranceSalary ? `${record.insuranceSalary} ج.م` : '---'}</span>}</td>
                                                 <td className="px-4 py-4">{isEditing ? <input type="text" className="w-28 p-1 border rounded text-xs" value={formData.insuranceOffice} onChange={e => setFormData({...formData, insuranceOffice: e.target.value})} /> : <span className="text-xs text-slate-500">{record.insuranceOffice || '---'}</span>}</td>
-                                                <td className="px-4 py-4 text-center">{isEditing ? <div className="flex items-center gap-1 justify-center"><input type="text" className="w-10 p-1 border rounded text-[10px]" value={formData.ratioCompany} onChange={e => setFormData({...formData, ratioCompany: e.target.value})} /><span className="text-slate-300">/</span><input type="text" className="w-10 p-1 border rounded text-[10px]" value={formData.ratioEmployee} onChange={e => setFormData({...formData, ratioEmployee: e.target.value})} /></div> : <span className="text-[10px] font-bold text-slate-400">{record.ratioCompany || '18.75'}% / {record.ratioEmployee || '11'}%</span>}</td>
+                                                <td className="px-4 py-4 text-center">
+                                                    {isEditing ? (
+                                                        <div className="flex flex-col items-center gap-1">
+                                                            <div className="flex items-center gap-1 justify-center">
+                                                                <div className="flex flex-col items-center">
+                                                                    <span className="text-[8px] text-slate-400">شركة (18.75%)</span>
+                                                                    <input type="text" readOnly className="w-16 p-1 border rounded text-[10px] bg-slate-50 text-center font-bold" value={formData.companyAmount || '0.00'} />
+                                                                </div>
+                                                                <span className="text-slate-300 mt-3">/</span>
+                                                                <div className="flex flex-col items-center">
+                                                                    <span className="text-[8px] text-slate-400">موظف (11%)</span>
+                                                                    <input type="text" readOnly className="w-16 p-1 border rounded text-[10px] bg-slate-50 text-center font-bold" value={formData.employeeAmount || '0.00'} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-[10px] font-bold text-slate-600">
+                                                                {record.companyAmount || '0.00'} / {record.employeeAmount || '0.00'}
+                                                            </span>
+                                                            <span className="text-[8px] text-slate-400">حصة الشركة / حصة الموظف</span>
+                                                        </div>
+                                                    )}
+                                                </td>
                                                 <td className="px-4 py-4 text-center no-print">{isEditing ? <button onClick={() => saveRecord(emp.id)} className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"><Icon name="check" size={14} /></button> : <button onClick={() => startEditing(emp)} className="p-2 bg-slate-100 text-slate-400 rounded-lg hover:bg-sky-500 hover:text-white transition-all"><Icon name="edit" size={14} /></button>}</td>
                                             </tr>
                                         );
