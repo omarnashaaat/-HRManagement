@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Icon } from '../components/Layout';
 
-export const Insurance = ({ employees, insuranceRecords, setInsuranceRecords }: any) => {
+export const Insurance = ({ employees, insuranceRecords, setInsuranceRecords, saveInsurance }: any) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState<any>({});
 
@@ -22,6 +22,7 @@ export const Insurance = ({ employees, insuranceRecords, setInsuranceRecords }: 
     const saveRecord = (empId: string) => {
         setInsuranceRecords((prev: any) => ({ ...prev, [empId]: formData }));
         setEditingId(null);
+        saveInsurance(empId, formData);
     };
 
     const stats = useMemo(() => {

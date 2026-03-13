@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../components/Layout';
 
-export const Attendance = ({ employees, attendanceLog, setAttendanceLog }: any) => {
+export const Attendance = ({ employees, attendanceLog, setAttendanceLog, saveAttendance, fetchAttendance }: any) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+    useEffect(() => {
+        if (selectedDate && !attendanceLog[selectedDate]) {
+            fetchAttendance(selectedDate);
+        }
+    }, [selectedDate]);
 
     const calculateDeduction = (arrival: string, departure: string) => {
         let lateDeduction = 0;
@@ -47,15 +53,20 @@ export const Attendance = ({ employees, attendanceLog, setAttendanceLog }: any) 
 
     const updateRecord = (empId: string, field: string, value: any) => {
         const dateRecords = attendanceLog[selectedDate] || {};
-        const currentRecord = dateRecords[empId] || { arrivalTime: '', departureTime: '', deduction: 0, notes: '' };
+        const currentRecord = dateRecords[empId] || { arrivalTime: '', departureTime: '', deduction: 0, lateDeduction: 0, earlyDeduction: 0, shift: '', notes: '' };
         const newRecord = { ...currentRecord, [field]: value };
-        if (field === 'arrivalTime' || field === 'departureTime') {
-            newRecord.deduction = calculateDeduction(newRecord.arrivalTime, newRecord.departureTime);
+        
+        if (field === 'lateDeduction' || field === 'earlyDeduction') {
+            newRecord.deduction = (parseFloat(newRecord.lateDeduction) || 0) + (parseFloat(newRecord.earlyDeduction) || 0);
         }
+
         setAttendanceLog((prev: any) => ({
             ...prev,
             [selectedDate]: { ...dateRecords, [empId]: newRecord }
         }));
+
+        // Sync with backend
+        saveAttendance(empId, selectedDate, newRecord);
     };
 
     return (
@@ -101,18 +112,67 @@ export const Attendance = ({ employees, attendanceLog, setAttendanceLog }: any) 
                     <div className="rounded-[40px] shadow-2xl overflow-hidden border bg-white border-slate-100">
                         <table className="w-full text-right">
                             <thead className="bg-slate-50 text-slate-500 text-[11px] font-black uppercase border-b">
-                                <tr><th className="px-6 py-5">الموظف</th><th className="px-4 py-5">حضور</th><th className="px-4 py-5">انصراف</th><th className="px-4 py-5 text-center">خصم</th><th className="px-4 py-5">ملاحظات</th></tr>
+                                <tr>
+                                    <th className="px-6 py-5">الموظف</th>
+                                    <th className="px-4 py-5">الوردية</th>
+                                    <th className="px-4 py-5">حضور</th>
+                                    <th className="px-4 py-5">انصراف</th>
+                                    <th className="px-4 py-5 text-center">تأخير (س)</th>
+                                    <th className="px-4 py-5 text-center">مبكر (س)</th>
+                                    <th className="px-4 py-5 text-center">إجمالي الخصم</th>
+                                    <th className="px-4 py-5">ملاحظات</th>
+                                </tr>
                             </thead>
                             <tbody className="divide-y">
                                 {employees.map((emp: any) => {
-                                    const record = (attendanceLog[selectedDate] && attendanceLog[selectedDate][emp.id]) || { arrivalTime: '', departureTime: '', deduction: 0, notes: '' };
+                                    const record = (attendanceLog[selectedDate] && attendanceLog[selectedDate][emp.id]) || { arrivalTime: '', departureTime: '', deduction: 0, lateDeduction: 0, earlyDeduction: 0, shift: '', notes: '' };
                                     return (
                                         <tr key={emp.id} className="hover:bg-blue-50/30">
-                                            <td className="px-6 py-4"><span className="font-black block">{emp.name}</span><span className="text-[10px] text-slate-400">كود: {emp.code}</span></td>
-                                            <td className="px-4 py-4"><input type="time" value={record.arrivalTime} onChange={(e) => updateRecord(emp.id, 'arrivalTime', e.target.value)} className="bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" /></td>
-                                            <td className="px-4 py-4"><input type="time" value={record.departureTime} onChange={(e) => updateRecord(emp.id, 'departureTime', e.target.value)} className="bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" /></td>
-                                            <td className="px-4 py-4 text-center"><span className={`px-4 py-2 rounded-full font-black text-xs ${record.deduction > 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>{record.deduction} س</span></td>
-                                            <td className="px-4 py-4"><input type="text" value={record.notes} onChange={(e) => updateRecord(emp.id, 'notes', e.target.value)} className="w-full bg-transparent border-b text-xs" /></td>
+                                            <td className="px-6 py-4">
+                                                <span className="font-black block">{emp.name}</span>
+                                                <span className="text-[10px] text-slate-400">كود: {emp.code}</span>
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="الوردية"
+                                                    value={record.shift || ''} 
+                                                    onChange={(e) => updateRecord(emp.id, 'shift', e.target.value)} 
+                                                    className="w-20 bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" 
+                                                />
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <input type="time" value={record.arrivalTime} onChange={(e) => updateRecord(emp.id, 'arrivalTime', e.target.value)} className="bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" />
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <input type="time" value={record.departureTime} onChange={(e) => updateRecord(emp.id, 'departureTime', e.target.value)} className="bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100" />
+                                            </td>
+                                            <td className="px-4 py-4 text-center">
+                                                <input 
+                                                    type="number" 
+                                                    step="0.5"
+                                                    value={record.lateDeduction || 0} 
+                                                    onChange={(e) => updateRecord(emp.id, 'lateDeduction', e.target.value)} 
+                                                    className="w-16 bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100 text-center" 
+                                                />
+                                            </td>
+                                            <td className="px-4 py-4 text-center">
+                                                <input 
+                                                    type="number" 
+                                                    step="0.5"
+                                                    value={record.earlyDeduction || 0} 
+                                                    onChange={(e) => updateRecord(emp.id, 'earlyDeduction', e.target.value)} 
+                                                    className="w-16 bg-slate-50 p-2 rounded-xl text-xs font-bold border border-slate-100 text-center" 
+                                                />
+                                            </td>
+                                            <td className="px-4 py-4 text-center">
+                                                <span className={`px-4 py-2 rounded-full font-black text-xs ${record.deduction > 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                                    {record.deduction} س
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <input type="text" value={record.notes} onChange={(e) => updateRecord(emp.id, 'notes', e.target.value)} className="w-full bg-transparent border-b text-xs" />
+                                            </td>
                                         </tr>
                                     );
                                 })}

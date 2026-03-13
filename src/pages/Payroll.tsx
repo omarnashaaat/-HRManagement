@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../components/Layout';
 
 const SettlementModal = ({ emp, month, record, onSave, onClose }: any) => {
@@ -192,8 +192,14 @@ const PayslipModal = ({ emp, month, record, onClose }: any) => {
     );
 };
 
-export const Payroll = ({ employees, payrollRecords, setPayrollRecords }: any) => {
+export const Payroll = ({ employees, payrollRecords, setPayrollRecords, savePayroll, fetchPayroll }: any) => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
+
+    useEffect(() => {
+        if (selectedMonth && !payrollRecords[selectedMonth]) {
+            fetchPayroll(selectedMonth);
+        }
+    }, [selectedMonth]);
     const [settlementTarget, setSettlementTarget] = useState<any>(null);
     const [payslipTarget, setPayslipTarget] = useState<any>(null);
 
@@ -241,6 +247,9 @@ export const Payroll = ({ employees, payrollRecords, setPayrollRecords }: any) =
             ...prev,
             [selectedMonth]: { ...monthRecords, [empId]: updated }
         }));
+
+        // Sync with backend
+        savePayroll(empId, selectedMonth, updated);
     };
 
     const calculateTotals = (record: any) => {

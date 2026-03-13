@@ -21,11 +21,11 @@ export default function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [password, setPassword] = useState('');
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
-    const [insuranceRecords, setInsuranceRecords] = useState({});
-    const [contractRecords, setContractRecords] = useState({});
-    const [attendanceLog, setAttendanceLog] = useState({});
-    const [payrollRecords, setPayrollRecords] = useState({});
+    const [employees, setEmployees] = useState<any[]>([]);
+    const [attendanceLog, setAttendanceLog] = useState<any>({});
+    const [insuranceRecords, setInsuranceRecords] = useState<any>({});
+    const [contractRecords, setContractRecords] = useState<any>({});
+    const [payrollRecords, setPayrollRecords] = useState<any>({});
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -33,10 +33,155 @@ export default function App() {
         return () => clearInterval(timer);
     }, []);
 
-    const addEmployee = (d: any) => setEmployees([...employees, { ...d, id: Date.now().toString(), status: 'نشط', totalLeaves: 21, monthlyLeaves: Array(12).fill(0) }]);
-    const bulkAddEmployees = (list: any[]) => setEmployees(p => [...p, ...list]);
-    const updateEmployee = (u: any) => setEmployees(employees.map(e => e.id === u.id ? { ...e, ...u } : e));
-    const deleteEmployee = (id: string) => setEmployees(employees.filter(e => e.id !== id));
+    // Fetch Initial Data
+    useEffect(() => {
+        if (isLoggedIn) {
+            fetchInitialData();
+        }
+    }, [isLoggedIn]);
+
+    const fetchInitialData = async () => {
+        try {
+            const [empRes, insRes, conRes] = await Promise.all([
+                fetch('/api/employees'),
+                fetch('/api/insurance'),
+                fetch('/api/contracts')
+            ]);
+            
+            const [emps, ins, cons] = await Promise.all([
+                empRes.json(),
+                insRes.json(),
+                conRes.json()
+            ]);
+
+            setEmployees(emps);
+            
+            const insMap: any = {};
+            ins.forEach((r: any) => insMap[r.employeeId] = JSON.parse(r.data));
+            setInsuranceRecords(insMap);
+
+            const conMap: any = {};
+            cons.forEach((r: any) => conMap[r.employeeId] = JSON.parse(r.data));
+            setContractRecords(conMap);
+
+        } catch (err) {
+            console.error('Failed to fetch initial data:', err);
+        }
+    };
+
+    const fetchAttendance = async (date: string) => {
+        try {
+            const res = await fetch(`/api/attendance/${date}`);
+            const data = await res.json();
+            const map: any = {};
+            data.forEach((r: any) => map[r.employeeId] = r);
+            setAttendanceLog((prev: any) => ({ ...prev, [date]: map }));
+        } catch (err) {
+            console.error('Failed to fetch attendance:', err);
+        }
+    };
+
+    const fetchPayroll = async (month: string) => {
+        try {
+            const res = await fetch(`/api/payroll/${month}`);
+            const data = await res.json();
+            const map: any = {};
+            data.forEach((r: any) => map[r.employeeId] = JSON.parse(r.data));
+            setPayrollRecords((prev: any) => ({ ...prev, [month]: map }));
+        } catch (err) {
+            console.error('Failed to fetch payroll:', err);
+        }
+    };
+
+    const saveAttendance = async (empId: string, date: string, record: any) => {
+        try {
+            await fetch('/api/attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employeeId: empId, date, ...record })
+            });
+        } catch (err) {
+            console.error('Failed to save attendance:', err);
+        }
+    };
+
+    const savePayroll = async (empId: string, month: string, record: any) => {
+        try {
+            await fetch('/api/payroll', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employeeId: empId, month, data: record })
+            });
+        } catch (err) {
+            console.error('Failed to save payroll:', err);
+        }
+    };
+
+    const saveInsurance = async (empId: string, record: any) => {
+        try {
+            await fetch('/api/insurance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employeeId: empId, data: record })
+            });
+        } catch (err) {
+            console.error('Failed to save insurance:', err);
+        }
+    };
+
+    const saveContract = async (empId: string, record: any) => {
+        try {
+            await fetch('/api/contracts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employeeId: empId, data: record })
+            });
+        } catch (err) {
+            console.error('Failed to save contract:', err);
+        }
+    };
+
+    const addEmployee = async (d: any) => {
+        const newEmp = { ...d, id: Date.now().toString(), status: 'نشط', totalLeaves: 21, monthlyLeaves: Array(12).fill(0) };
+        try {
+            await fetch('/api/employees', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newEmp)
+            });
+            setEmployees(prev => [...prev, newEmp]);
+        } catch (err) {
+            console.error('Failed to add employee:', err);
+        }
+    };
+
+    const bulkAddEmployees = async (list: any[]) => {
+        for (const emp of list) {
+            await addEmployee(emp);
+        }
+    };
+
+    const updateEmployee = async (u: any) => {
+        try {
+            await fetch(`/api/employees/${u.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(u)
+            });
+            setEmployees(employees.map(e => e.id === u.id ? { ...e, ...u } : e));
+        } catch (err) {
+            console.error('Failed to update employee:', err);
+        }
+    };
+
+    const deleteEmployee = async (id: string) => {
+        try {
+            await fetch(`/api/employees/${id}`, { method: 'DELETE' });
+            setEmployees(employees.filter(e => e.id !== id));
+        } catch (err) {
+            console.error('Failed to delete employee:', err);
+        }
+    };
 
     const handleRestore = (data: any) => {
         if (data.employees) setEmployees(data.employees);
@@ -90,17 +235,17 @@ export default function App() {
                     ) : activeTab === 'employees' ? (
                         <EmployeeTable employees={employees} onAddEmployee={addEmployee} onUpdateEmployee={updateEmployee} onDeleteEmployee={deleteEmployee} onBulkAdd={bulkAddEmployees} />
                     ) : activeTab === 'attendance' ? (
-                        <Attendance employees={employees} attendanceLog={attendanceLog} setAttendanceLog={setAttendanceLog} />
+                        <Attendance employees={employees} attendanceLog={attendanceLog} setAttendanceLog={setAttendanceLog} saveAttendance={saveAttendance} fetchAttendance={fetchAttendance} />
                     ) : activeTab === 'payroll' ? (
-                        <Payroll employees={employees} payrollRecords={payrollRecords} setPayrollRecords={setPayrollRecords} />
+                        <Payroll employees={employees} payrollRecords={payrollRecords} setPayrollRecords={setPayrollRecords} savePayroll={savePayroll} fetchPayroll={fetchPayroll} />
                     ) : activeTab === 'leaves' ? (
                         <Leaves employees={employees} onUpdateEmployee={updateEmployee} />
                     ) : activeTab === 'archive' ? (
                         <Archive employees={employees} />
                     ) : activeTab === 'insurance' ? (
-                        <Insurance employees={employees} insuranceRecords={insuranceRecords} setInsuranceRecords={setInsuranceRecords} />
+                        <Insurance employees={employees} insuranceRecords={insuranceRecords} setInsuranceRecords={setInsuranceRecords} saveInsurance={saveInsurance} />
                     ) : activeTab === 'contracts' ? (
-                        <Contracts employees={employees} contractRecords={contractRecords} setContractRecords={setContractRecords} />
+                        <Contracts employees={employees} contractRecords={contractRecords} setContractRecords={setContractRecords} saveContract={saveContract} />
                     ) : activeTab === 'recruitment' ? (
                         <Recruitment />
                     ) : activeTab === 'settings' ? (

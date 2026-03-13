@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Icon } from '../components/Layout';
 
-export const Contracts = ({ employees, contractRecords, setContractRecords }: any) => {
+export const Contracts = ({ employees, contractRecords, setContractRecords, saveContract }: any) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState<any>({});
 
@@ -21,6 +21,7 @@ export const Contracts = ({ employees, contractRecords, setContractRecords }: an
     const saveRecord = (empId: string) => {
         setContractRecords((prev: any) => ({ ...prev, [empId]: formData }));
         setEditingId(null);
+        saveContract(empId, formData);
     };
 
     return (

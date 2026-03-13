@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -16,7 +16,9 @@ import {
   Clock,
   Briefcase,
   Trash2,
-  Edit3
+  Edit3,
+  Upload,
+  Loader2
 } from 'lucide-react';
 import { Card, Button, cn } from '../components/Layout';
 
@@ -36,92 +38,234 @@ interface Candidate {
   score: number;
   priority: 'عاجل' | 'متوسط' | 'عادي';
   status: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
 }
 
-const INITIAL_CANDIDATES: Candidate[] = [
-  {
-    id: '1',
-    name: 'ليلى حسن',
-    role: 'مصمم جرافيك',
-    experience: '3 سنوات',
-    date: '2026/3/11',
-    score: 85,
-    priority: 'متوسط',
-    status: 'applied'
-  },
-  {
-    id: '2',
-    name: 'كريم عادل',
-    role: 'مسوق رقمي',
-    experience: '2 سنوات',
-    date: '2026/3/10',
-    score: 78,
-    priority: 'عادي',
-    status: 'applied'
-  },
-  {
-    id: '3',
-    name: 'ياسر كمال',
-    role: 'مهندس برمجيات',
-    experience: '5 سنوات',
-    date: '2026/3/9',
-    score: 92,
-    priority: 'عاجل',
-    status: 'interview'
-  }
-];
-
 export const Recruitment = () => {
-  const [candidates, setCandidates] = useState<Candidate[]>(INITIAL_CANDIDATES);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [newCandidate, setNewCandidate] = useState({
     name: '',
     role: '',
     experience: '',
     priority: 'عادي' as const,
+    email: '',
+    phone: '',
   });
 
-  const handleAddCandidate = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchCandidates();
+  }, []);
+
+  const fetchCandidates = async () => {
+    try {
+      const res = await fetch('/api/candidates');
+      const data = await res.json();
+      setCandidates(data.map((c: any) => ({
+        ...c,
+        date: new Date(c.createdAt).toLocaleDateString('ar-EG')
+      })));
+    } catch (err) {
+      console.error('Failed to fetch candidates:', err);
+    }
+  };
+
+  const saveCandidate = async (candidate: Candidate) => {
+    try {
+      await fetch('/api/candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...candidate,
+          createdAt: Date.now()
+        })
+      });
+    } catch (err) {
+      console.error('Failed to save candidate:', err);
+    }
+  };
+
+  const handleAddCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     const candidate: Candidate = {
       id: Date.now().toString(),
       ...newCandidate,
       date: new Date().toLocaleDateString('ar-EG'),
-      score: Math.floor(Math.random() * 30) + 60, // Random initial score
+      score: Math.floor(Math.random() * 30) + 60,
       status: 'applied'
     };
     setCandidates([...candidates, candidate]);
+    await saveCandidate(candidate);
     setShowAddModal(false);
-    setNewCandidate({ name: '', role: '', experience: '', priority: 'عادي' });
+    setNewCandidate({ name: '', role: '', experience: '', priority: 'عادي', email: '', phone: '' });
   };
 
-  const handleEditCandidate = (e: React.FormEvent) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsAnalyzing(true);
+    try {
+      let text = '';
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        text = await parsePDF(file);
+      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.toLowerCase().endsWith('.docx')) {
+        text = await parseDocx(file);
+      } else {
+        throw new Error('Unsupported file type');
+      }
+
+      const analyzedData = await analyzeCVLocal(text, file.name);
+      if (analyzedData) {
+        const candidate: Candidate = {
+          id: Date.now().toString(),
+          name: analyzedData.name || 'غير معروف',
+          role: analyzedData.role || 'غير محدد',
+          experience: analyzedData.experience || 'غير محدد',
+          email: analyzedData.email || '',
+          phone: analyzedData.phone || '',
+          score: analyzedData.score || 70,
+          priority: (analyzedData.score > 85 ? 'عاجل' : analyzedData.score > 70 ? 'متوسط' : 'عادي') as any,
+          status: 'applied',
+          date: new Date().toLocaleDateString('ar-EG'),
+          notes: analyzedData.summary || ''
+        };
+        setCandidates(prev => [...prev, candidate]);
+        await saveCandidate(candidate);
+      }
+    } catch (err) {
+      console.error('Error analyzing CV:', err);
+      alert('حدث خطأ أثناء تحليل السيرة الذاتية');
+    } finally {
+      setIsAnalyzing(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const parsePDF = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfjsLib = (window as any).pdfjsLib;
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map((item: any) => item.str).join(' ');
+    }
+    return text;
+  };
+
+  const parseDocx = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const mammoth = (window as any).mammoth;
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return result.value;
+  };
+
+  const analyzeCVLocal = async (text: string, filename: string) => {
+    // Basic local extraction using Regex
+    const emailMatch = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+    const phoneMatch = text.match(/(?:(?:\+|00)\d{1,3}[\s-]?)?(?:\d{2,4}[\s-]?){2,4}\d{2,4}/);
+    
+    // Guess name from filename (remove extension and clean up)
+    let name = filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ').trim();
+    if (!name || name.toLowerCase().includes('cv') || name.toLowerCase().includes('resume')) {
+        // Try to get first few words of text as name if filename is generic
+        const words = text.trim().split(/\s+/).slice(0, 3);
+        if (words.length > 0 && !words[0].includes('@') && !/\d/.test(words[0])) {
+            name = words.join(' ');
+        } else {
+            name = 'غير معروف';
+        }
+    }
+    
+    // Try to find a role
+    const roles = [
+      'developer', 'engineer', 'manager', 'designer', 'accountant', 'sales', 'hr', 
+      'مدير', 'مهندس', 'محاسب', 'مبيعات', 'مطور', 'مصمم', 'تسويق', 'marketing',
+      'frontend', 'backend', 'fullstack', 'data scientist', 'analyst', 'consultant',
+      'مستشار', 'محلل', 'مبرمج'
+    ];
+    let role = 'غير محدد';
+    const lowerText = text.toLowerCase();
+    for (const r of roles) {
+      if (lowerText.includes(r)) {
+        role = r;
+        break;
+      }
+    }
+
+    // Try to find experience
+    let experience = 'غير محدد';
+    const expMatch = lowerText.match(/(\d+)\s*(?:years?|yrs?|سنوات|سنة|سنين)\s*(?:of)?\s*experience/i) || 
+                     lowerText.match(/خبرة\s*(?:تصل إلى|حوالي|أكثر من)?\s*(\d+)\s*(?:سنوات|سنة|سنين)/i);
+    if (expMatch && expMatch[1]) {
+        experience = `${expMatch[1]} سنوات`;
+    }
+
+    // Estimate score based on text length and keywords
+    let score = 60;
+    if (text.length > 500) score += 5;
+    if (text.length > 1500) score += 10;
+    if (emailMatch) score += 5;
+    if (phoneMatch) score += 5;
+    if (role !== 'غير محدد') score += 10;
+    if (experience !== 'غير محدد') score += 5;
+    score = Math.min(score, 99);
+
+    return {
+      name: name,
+      role: role,
+      experience: experience,
+      email: emailMatch ? emailMatch[0] : '',
+      phone: phoneMatch ? phoneMatch[0] : '',
+      score: score,
+      summary: text.substring(0, 300) + '...'
+    };
+  };
+
+  const handleEditCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCandidate) return;
     
     setCandidates(prev => prev.map(c => 
       c.id === editingCandidate.id ? editingCandidate : c
     ));
+    await saveCandidate(editingCandidate);
     setEditingCandidate(null);
   };
 
-  const moveNext = (id: string) => {
+  const moveNext = async (id: string) => {
+    let updatedCandidate: Candidate | null = null;
     setCandidates(prev => prev.map(c => {
       if (c.id === id) {
         const currentIndex = STAGES.findIndex(s => s.id === c.status);
         if (currentIndex < STAGES.length - 1) {
-          return { ...c, status: STAGES[currentIndex + 1].id };
+          updatedCandidate = { ...c, status: STAGES[currentIndex + 1].id };
+          return updatedCandidate;
         }
       }
       return c;
     }));
+    if (updatedCandidate) {
+      await saveCandidate(updatedCandidate);
+    }
   };
 
-  const deleteCandidate = (id: string) => {
+  const deleteCandidate = async (id: string) => {
     if (confirm('هل أنت متأكد من حذف هذا المرشح؟')) {
-      setCandidates(prev => prev.filter(c => c.id !== id));
+      try {
+        await fetch(`/api/candidates/${id}`, { method: 'DELETE' });
+        setCandidates(prev => prev.filter(c => c.id !== id));
+      } catch (err) {
+        console.error('Failed to delete candidate:', err);
+      }
     }
   };
 
@@ -154,6 +298,21 @@ export const Recruitment = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept=".pdf,.docx" 
+            onChange={handleFileUpload} 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isAnalyzing}
+            className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-black text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
+          >
+            {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+            <span>{isAnalyzing ? 'جاري التحليل...' : 'تحليل CV ذكي'}</span>
+          </button>
           <button className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-black text-slate-600 hover:bg-slate-50 transition-all">
             <Filter size={16} />
             <span>كل الأولويات</span>
@@ -245,6 +404,11 @@ export const Recruitment = () => {
                       <div className="space-y-1 mb-4">
                         <h4 className="font-black text-slate-800 text-base">{cand.name}</h4>
                         <p className="text-xs font-bold text-indigo-600">{cand.role}</p>
+                        {cand.notes && (
+                          <p className="text-[10px] text-slate-500 line-clamp-2 bg-slate-50 p-2 rounded-lg mt-2 italic">
+                            {cand.notes}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2 mb-4">

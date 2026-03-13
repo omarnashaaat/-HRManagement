@@ -32,22 +32,42 @@ db.exec(`
     arrivalTime TEXT,
     departureTime TEXT,
     deduction REAL DEFAULT 0,
+    lateDeduction REAL DEFAULT 0,
+    earlyDeduction REAL DEFAULT 0,
+    shift TEXT,
     notes TEXT,
     UNIQUE(employeeId, date)
+  );
+
+  CREATE TABLE IF NOT EXISTS payroll (
+    employeeId TEXT,
+    month TEXT,
+    data TEXT, -- JSON string of payroll record
+    PRIMARY KEY(employeeId, month)
+  );
+
+  CREATE TABLE IF NOT EXISTS insurance (
+    employeeId TEXT PRIMARY KEY,
+    data TEXT -- JSON string
+  );
+
+  CREATE TABLE IF NOT EXISTS contracts (
+    employeeId TEXT PRIMARY KEY,
+    data TEXT -- JSON string
   );
 
   CREATE TABLE IF NOT EXISTS candidates (
     id TEXT PRIMARY KEY,
     name TEXT,
     role TEXT,
-    experience TEXT,
     email TEXT,
     phone TEXT,
     status TEXT,
     priority TEXT,
     score INTEGER,
     createdAt INTEGER,
-    notes TEXT
+    notes TEXT,
+    experience TEXT
   );
 
   CREATE TABLE IF NOT EXISTS settings (
@@ -103,17 +123,73 @@ async function startServer() {
     res.json(records);
   });
 
+  app.get("/api/attendance/:date", (req, res) => {
+    const records = db.prepare("SELECT * FROM attendance WHERE date = ?").all(req.params.date);
+    res.json(records);
+  });
+
   app.post("/api/attendance", (req, res) => {
-    const { employeeId, date, arrivalTime, departureTime, deduction, notes } = req.body;
+    const { employeeId, date, arrivalTime, departureTime, deduction, lateDeduction, earlyDeduction, shift, notes } = req.body;
     db.prepare(`
-      INSERT INTO attendance (employeeId, date, arrivalTime, departureTime, deduction, notes)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO attendance (employeeId, date, arrivalTime, departureTime, deduction, lateDeduction, earlyDeduction, shift, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(employeeId, date) DO UPDATE SET
         arrivalTime = excluded.arrivalTime,
         departureTime = excluded.departureTime,
         deduction = excluded.deduction,
+        lateDeduction = excluded.lateDeduction,
+        earlyDeduction = excluded.earlyDeduction,
+        shift = excluded.shift,
         notes = excluded.notes
-    `).run(employeeId, date, arrivalTime, departureTime, deduction, notes);
+    `).run(employeeId, date, arrivalTime, departureTime, deduction, lateDeduction, earlyDeduction, shift, notes);
+    res.json({ success: true });
+  });
+
+  // Payroll
+  app.get("/api/payroll/:month", (req, res) => {
+    const records = db.prepare("SELECT * FROM payroll WHERE month = ?").all(req.params.month);
+    res.json(records);
+  });
+
+  app.post("/api/payroll", (req, res) => {
+    const { employeeId, month, data } = req.body;
+    db.prepare(`
+      INSERT INTO payroll (employeeId, month, data)
+      VALUES (?, ?, ?)
+      ON CONFLICT(employeeId, month) DO UPDATE SET data = excluded.data
+    `).run(employeeId, month, JSON.stringify(data));
+    res.json({ success: true });
+  });
+
+  // Insurance
+  app.get("/api/insurance", (req, res) => {
+    const records = db.prepare("SELECT * FROM insurance").all();
+    res.json(records);
+  });
+
+  app.post("/api/insurance", (req, res) => {
+    const { employeeId, data } = req.body;
+    db.prepare(`
+      INSERT INTO insurance (employeeId, data)
+      VALUES (?, ?)
+      ON CONFLICT(employeeId) DO UPDATE SET data = excluded.data
+    `).run(employeeId, JSON.stringify(data));
+    res.json({ success: true });
+  });
+
+  // Contracts
+  app.get("/api/contracts", (req, res) => {
+    const records = db.prepare("SELECT * FROM contracts").all();
+    res.json(records);
+  });
+
+  app.post("/api/contracts", (req, res) => {
+    const { employeeId, data } = req.body;
+    db.prepare(`
+      INSERT INTO contracts (employeeId, data)
+      VALUES (?, ?)
+      ON CONFLICT(employeeId) DO UPDATE SET data = excluded.data
+    `).run(employeeId, JSON.stringify(data));
     res.json({ success: true });
   });
 
@@ -124,21 +200,21 @@ async function startServer() {
   });
 
   app.post("/api/candidates", (req, res) => {
-    const { id, name, role, experience, email, phone, status, priority, score, createdAt, notes } = req.body;
+    const { id, name, role, email, phone, status, priority, score, createdAt, notes, experience } = req.body;
     db.prepare(`
-      INSERT INTO candidates (id, name, role, experience, email, phone, status, priority, score, createdAt, notes)
+      INSERT INTO candidates (id, name, role, email, phone, status, priority, score, createdAt, notes, experience)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         role = excluded.role,
-        experience = excluded.experience,
         email = excluded.email,
         phone = excluded.phone,
         status = excluded.status,
         priority = excluded.priority,
         score = excluded.score,
-        notes = excluded.notes
-    `).run(id, name, role, experience, email, phone, status, priority, score, createdAt, notes);
+        notes = excluded.notes,
+        experience = excluded.experience
+    `).run(id, name, role, email, phone, status, priority, score, createdAt, notes, experience);
     res.json({ success: true });
   });
 
